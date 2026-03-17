@@ -1,9 +1,9 @@
-import AssesmentForm from './components/assessment/AssesmentForm'
+import AssessmentForm from './components/assessment/AssessmentForm'
 
 function App() {
 
   return (
-    <AssesmentForm />
+    <AssessmentForm />
   )
 }
 
