@@ -1,0 +1,133 @@
+@reference "tailwindcss";
+
+.page {
+  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black flex items-start justify-center py-14 px-4;
+}
+
+.container {
+  @apply w-full max-w-xl;
+}
+
+.header {
+  @apply text-center mb-10;
+}
+
+.headerIcon {
+  @apply text-6xl mb-3;
+}
+
+.headerTitle {
+  @apply text-4xl font-bold text-white tracking-tight;
+}
+
+.headerSubtitle {
+  @apply text-purple-300/70 mt-2 text-sm;
+}
+
+.form {
+  @apply space-y-5;
+}
+
+.card {
+  @apply bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm space-y-5;
+}
+
+.cardNoSpace {
+  @apply bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-sm;
+}
+
+.sectionTitle {
+  @apply text-base font-semibold text-purple-200 uppercase tracking-wider;
+}
+
+.sectionTitleMb {
+  @apply text-base font-semibold text-purple-200 uppercase tracking-wider mb-4;
+}
+
+.grid2 {
+  @apply grid grid-cols-2 gap-4;
+}
+
+.grid3 {
+  @apply grid grid-cols-3 gap-3;
+}
+
+.field {
+  @apply flex flex-col gap-1.5;
+}
+
+.fieldLabel {
+  @apply text-xs font-medium text-purple-300 uppercase tracking-wide;
+}
+
+.input {
+  @apply w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all text-sm;
+}
+
+.select {
+  @apply w-full bg-slate-800/80 border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all text-sm;
+}
+
+.checkboxCard {
+  @apply flex flex-col items-center gap-2 bg-white/5 border border-white/15 rounded-xl p-4 cursor-pointer hover:border-purple-400 hover:bg-purple-500/10 transition-all;
+}
+
+.checkboxHidden {
+  @apply sr-only;
+}
+
+.checkboxIcon {
+  @apply text-2xl;
+}
+
+.checkboxLabel {
+  @apply text-sm text-white/80 font-medium transition-colors;
+}
+
+.checkboxCard:hover .checkboxLabel {
+  @apply text-white;
+}
+
+.checkboxCard:has(input:checked) {
+  @apply border-purple-400 bg-purple-500/20;
+}
+
+.checkboxCard:has(input:checked) .checkboxLabel {
+  @apply text-white;
+}
+
+.checkboxCard:has(input:checked) .checkboxIcon {
+  filter: drop-shadow(0 0 10px rgba(196, 126, 255, 0.45));
+}
+
+.submitButton {
+  @apply w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-purple-900/50 hover:shadow-purple-700/40 hover:scale-[1.01];
+}
+
+.stepIndicator {
+  @apply flex items-center justify-center gap-3 mb-8;
+}
+
+.stepActive {
+  @apply w-8 h-8 rounded-full bg-purple-500 text-white text-sm font-bold flex items-center justify-center;
+}
+
+.stepDone {
+  @apply w-8 h-8 rounded-full bg-purple-700 text-purple-200 text-sm font-bold flex items-center justify-center;
+}
+
+.stepInactive {
+  @apply w-8 h-8 rounded-full bg-white/10 text-white/40 text-sm font-bold flex items-center justify-center;
+}
+
+.stepLine {
+  @apply h-px w-12 bg-white/20;
+}
+
+.stepButtons {
+  @apply flex gap-3;
+}
+
+.backButton {
+  @apply bg-white/10 hover:bg-white/15 text-white/80 font-semibold py-3.5 px-6 rounded-xl transition-all duration-200;
+}
