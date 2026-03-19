@@ -27,7 +27,7 @@ export function AssesmentStepTwo({
           <div className={s.headerIcon}>👤</div>
           <h1 className={s.headerTitle}>Din profil</h1>
           <p className={s.headerSubtitle}>
-            Lite om dig — hjälper oss ge bättre rekommendationer
+            Lite om dig hjälper oss ge bättre rekommendationer
           </p>
         </div>
 
