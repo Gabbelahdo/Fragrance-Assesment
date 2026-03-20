@@ -1,25 +1,48 @@
+// Importerar typ för formulärets submit-handler.
 import type { FormEventHandler } from "react";
+// Importerar typer för register-funktion och felobjekt.
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
+// Importerar fasta listor (noter och säsonger) som används i UI:t.
 import { predefinedNotes, seasons } from "./constants";
+// Importerar hjälpfunktion för att visa emoji till en vald not.
 import { getNoteEmoji } from "./noteUtils";
+// Importerar typen för steg 1-formulärets data.
 import type { Step1Values } from "./validation";
+// Importerar CSS-modulens klassnamn.
 import s from "./AssesmentForm.module.css";
 
+
+// Definierar vilka props komponenten behöver från parent.
 type AssesmentStepOneProps = {
+
+    // Funktion som kopplar varje input till react-hook-form.
   register: UseFormRegister<Step1Values>;
+    // Handler som körs när formuläret skickas.
   onSubmit: FormEventHandler<HTMLFormElement>;
+    // Lista med alla noter som användaren har valt.
   selectedNotes: string[];
+    // Nuvarande text i inputen för egen not.
   customNoteInput: string;
+    // Setter för att uppdatera texten i egen not-input.
   setCustomNoteInput: (value: string) => void;
+    // Funktion som togglar en not mellan vald/inte vald.
   toggleNote: (note: string) => void;
+    // Funktion som lägger till texten i customNoteInput som not.
   addCustomNote: () => void;
+    // Funktion som tar bort en vald not.
   removeNote: (note: string) => void;
+    // Keydown-handler för att t.ex. lägga till not med Enter/komma.
   handleCustomNoteKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
+    // Hjälpfunktion som returnerar om en not är vald.
   isNoteSelected: (note: string) => boolean;
+    // Valideringsfel för steg 1.
   errors: FieldErrors<Step1Values>;
 };
 
+// Exporterar steg 1-komponenten.
 export function AssesmentStepOne({
+
+  //tar emot följande funktioner, typer osv
   register,
   onSubmit,
   selectedNotes,
@@ -32,7 +55,11 @@ export function AssesmentStepOne({
   isNoteSelected,
   errors,
 }: AssesmentStepOneProps) {
+
+    // Returnerar hela UI:t för steg 1.
   return (
+
+    // Yttersta wrapper med sidlayout.
     <div className={s.page}>
       <div className={s.container}>
         <div className={s.header}>
@@ -43,29 +70,49 @@ export function AssesmentStepOne({
           </p>
         </div>
 
+        {/* Visuell stegindikator: aktivt steg 1, inaktivt steg 2. */}
         <div className={s.stepIndicator}>
+          {/* Cirkeln för aktivt steg. */}
           <div className={s.stepActive}>1</div>
+
+          {/* Linjen mellan stegen. */}
           <div className={s.stepLine} />
+
+          {/* Cirkeln för nästa steg. */}
           <div className={s.stepInactive}>2</div>
         </div>
 
+        {/* Formulär för steg 1. */}
         <form onSubmit={onSubmit} className={s.form}>
+
+          {/* Sektion med preferensfält. */}
           <div className={s.card}>
+
+            {/* Rubriken. */}
             <h2 className={s.sectionTitle}>Preferenser</h2>
 
+            {/* Grid med två kolumner för budgetfälten. */}
             <div className={s.grid2}>
+
+              {/* Fältgrupp för lägsta budget. */}
               <div className={s.field}>
                 <label className={s.fieldLabel}>Budget min (kr)</label>
+                {/* Numeric input. */}
+                {/* Endast heltalssteg. */}
+                {/* Placeholder för minbudget. */}
+                {/* Registrerar fältet och konverterar värdet till number. */}
+                {/* Lägger till felklass om valideringen misslyckas. */}
                 <input
                   type="number"
                   step="1"
                   placeholder="0"
-                    {...register("budgetMin", { valueAsNumber: true })}
-                    className={`${s.input} ${errors.budgetMin ? s.inputError : ""}`}
+                  {...register("budgetMin", { valueAsNumber: true })}
+                  className={`${s.input} ${errors.budgetMin ? s.inputError : ""}`}
                 />
-                  {errors.budgetMin && (
-                    <p className={s.fieldError}>{errors.budgetMin.message}</p>
-                  )}
+                {/* Renderar felmeddelande om budgetMin har fel. */}
+                {errors.budgetMin && (
+                  <p className={s.fieldError}>{errors.budgetMin.message}</p>
+                )}
               </div>
 
               <div className={s.field}>
@@ -102,7 +149,10 @@ export function AssesmentStepOne({
                 {predefinedNotes.map((note) => {
                   const isSelected = isNoteSelected(note.label);
 
+
+                 // Returnerar en toggle-knapp för varje not.
                   return (
+                  // Button för att välja/avvälja not.
                     <button
                       key={note.label}
                       type="button"
@@ -129,7 +179,7 @@ export function AssesmentStepOne({
                   Lägg till
                 </button>
               </div>
-
+        
               {!!selectedNotes.length && (
                 <div className={s.selectedTags}>
                   {selectedNotes.map((note) => (
