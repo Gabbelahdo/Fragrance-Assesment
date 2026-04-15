@@ -171,3 +171,53 @@
 .inputError {
   @apply border-red-400 focus:border-red-400 focus:ring-red-400;
 }
+
+/* ── Loading screen ──────────────────────────────────── */
+
+.loadingPage {
+  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black flex items-center justify-center;
+}
+
+.loadingContent {
+  @apply flex flex-col items-center gap-5 text-center px-4;
+}
+
+.loadingIcon {
+  @apply text-8xl;
+  animation: floatBounce 1.4s ease-in-out infinite;
+}
+
+.loadingTitle {
+  @apply text-white text-xl font-semibold tracking-tight;
+}
+
+.loadingSubtitle {
+  @apply text-purple-300/60 text-sm -mt-2;
+}
+
+.loadingDots {
+  @apply flex gap-2;
+}
+
+.dot {
+  @apply w-2.5 h-2.5 rounded-full bg-purple-400;
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes floatBounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-18px); }
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}

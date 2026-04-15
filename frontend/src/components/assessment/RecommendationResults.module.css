@@ -1,0 +1,131 @@
+@reference "tailwindcss";
+
+.page {
+  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black flex items-start justify-center py-14 px-4;
+}
+
+.container {
+  @apply w-full max-w-3xl flex flex-col gap-8;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+
+.header {
+  @apply text-center;
+}
+
+.headerIcon {
+  @apply text-6xl mb-3;
+}
+
+.headerTitle {
+  @apply text-4xl font-bold text-white tracking-tight;
+}
+
+.headerSubtitle {
+  @apply text-purple-300/70 mt-2 text-sm;
+}
+
+/* ── Grid ────────────────────────────────────────────── */
+
+.grid {
+  @apply grid gap-5;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* ── Card ────────────────────────────────────────────── */
+
+.card {
+  @apply bg-white/5 border border-white/10 rounded-2xl overflow-hidden backdrop-blur-sm flex flex-col;
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+
+.card:hover {
+  @apply border-purple-400/40;
+  transform: translateY(-2px);
+}
+
+/* ── Image area ──────────────────────────────────────── */
+
+.imageArea {
+  @apply relative h-48 bg-white/5 flex items-center justify-center border-b border-white/10;
+}
+
+.image {
+  @apply h-full w-full object-cover;
+}
+
+.imagePlaceholderIcon {
+  @apply text-8xl;
+  opacity: 0.18;
+}
+
+.matchBadge {
+  @apply absolute top-3 right-3 bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full;
+}
+
+/* ── Card body ───────────────────────────────────────── */
+
+.cardBody {
+  @apply p-5 flex flex-col gap-4 flex-1;
+}
+
+.cardTop {
+  @apply flex items-start justify-between gap-3;
+}
+
+.brand {
+  @apply text-xs text-purple-300/70 uppercase tracking-widest font-medium;
+}
+
+.name {
+  @apply text-xl font-bold text-white mt-0.5;
+}
+
+.typeBadge {
+  @apply shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-purple-200 bg-purple-500/20 border border-purple-400/30 rounded-full px-3 py-1;
+}
+
+.description {
+  @apply text-white/60 text-sm leading-relaxed;
+}
+
+/* ── Notes ───────────────────────────────────────────── */
+
+.notesLabel {
+  @apply text-xs font-semibold text-purple-300 uppercase tracking-wider mb-2;
+}
+
+.notesList {
+  @apply flex flex-wrap gap-1.5;
+}
+
+.noteChip {
+  @apply inline-block rounded-full border border-white/20 bg-white/5 px-2.5 py-1 text-xs text-white/70;
+}
+
+/* ── Footer ──────────────────────────────────────────── */
+
+.cardFooter {
+  @apply flex items-center justify-between mt-auto pt-1;
+}
+
+.priceRange {
+  @apply text-sm text-white/50 font-medium;
+}
+
+.learnMoreButton {
+  @apply text-sm font-semibold text-purple-300 hover:text-white transition-colors duration-150 cursor-pointer;
+}
+
+/* ── Empty state ─────────────────────────────────────── */
+
+.empty {
+  @apply text-center text-white/50 py-16;
+}
+
+/* ── Restart button ──────────────────────────────────── */
+
+.restartButton {
+  @apply self-center bg-white/10 hover:bg-white/15 text-white/80 font-semibold py-3.5 px-8 rounded-xl transition-all duration-200 cursor-pointer;
+}

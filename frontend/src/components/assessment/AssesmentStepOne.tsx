@@ -142,6 +142,31 @@ export function AssesmentStepOne({
             </div>
 
             <div className={s.field}>
+              <label className={s.fieldLabel}>Kön</label>
+              <div className={s.grid3}>
+                {([
+                  { value: "men", label: "Herr", icon: "🧔" },
+                  { value: "women", label: "Dam", icon: "👩" },
+                  { value: "unisex", label: "Unisex", icon: "🧑" },
+                ] as const).map(({ value, label, icon }) => (
+                  <label key={value} className={s.checkboxCard}>
+                    <input
+                      type="radio"
+                      value={value}
+                      {...register("fragranceGender")}
+                      className={s.checkboxHidden}
+                    />
+                    <span className={s.checkboxIcon}>{icon}</span>
+                    <span className={s.checkboxLabel}>{label}</span>
+                  </label>
+                ))}
+              </div>
+              {errors.fragranceGender && (
+                <p className={s.fieldError}>{errors.fragranceGender.message}</p>
+              )}
+            </div>
+
+            <div className={s.field}>
               <label className={s.fieldLabel}>Favoritnoter</label>
               <p className={s.helperText}>Välj bland färdiga noter eller lägg till egna.</p>
 

@@ -8,3 +8,17 @@ export type PredefinedNote = {
   label: string;
   emoji: string;
 };
+
+export type FragranceType = "niche" | "designer" | "dupe";
+
+export type FragranceRecommendation = {
+  id: string;
+  name: string;
+  brand: string;
+  description: string;
+  notes: string[];
+  imageUrl?: string;
+  matchScore: number; // 0–100
+  type: FragranceType;
+  priceRange: string;
+};
