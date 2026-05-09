@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,12 +15,26 @@ class Settings(BaseSettings):
     # External APIs
     fragrance_api_url: str
     fragrance_api_key: str
-    ai_api_key: str
+    ai_api_key: str  # Anthropic API key (sk-ant-...)
 
-    # CORS — comma-separated list of allowed origins
-    cors_origins: list[str] = ["http://localhost:5173"]
+    # CORS — stored as a comma-separated string so Azure App Settings is simple.
+    # Example: CORS_ORIGINS=http://localhost:5173,https://yourapp.azurestaticapps.net
+    # We keep it as str here and expose cors_origins as a property to avoid
+    # pydantic-settings trying to JSON-decode a list[str] from the env file.
+    cors_origins_raw: str = Field(
+        default="http://localhost:5173",
+        alias="CORS_ORIGINS",
+    )
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        populate_by_name=True,  # allow field name OR alias
+    )
 
 
 settings = Settings()  # type: ignore[call-arg]

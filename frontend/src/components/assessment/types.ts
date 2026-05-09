@@ -21,4 +21,5 @@ export type FragranceRecommendation = {
   matchScore: number; // 0–100
   type: FragranceType;
   priceRange: string;
+  reason?: string; // AI explanation of why this fragrance was recommended
 };

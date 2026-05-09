@@ -12,6 +12,14 @@ export default defineConfig(({ mode }) => {
 
     server: {
       proxy: {
+        // Any request to /api/* is forwarded to the FastAPI backend.
+        // The /api prefix is stripped so /api/ai/recommend → /ai/recommend on the server.
+        '/api': {
+          target: 'http://localhost:8000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+        },
+
         // Any request to /fragrance-proxy/* is forwarded to the Fragella API.
         // The API key is injected here in Node — it never touches the browser.
         '/fragrance-proxy': {

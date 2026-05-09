@@ -1,16 +1,28 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
+from app.core.database import ensure_indexes
 from app.users.router import router as users_router
 from app.fragrances.router import router as fragrances_router
 from app.ai.router import router as ai_router
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Run startup tasks before the server starts accepting requests."""
+    await ensure_indexes()
+    yield
+
+
 app = FastAPI(
     title="Fragrance Assessment API",
     version="0.1.0",
-    docs_url="/docs",       # Swagger UI — disable in prod if desired
+    docs_url="/docs",
     redoc_url="/redoc",
+    lifespan=lifespan,
 )
 
 # ── CORS ────────────────────────────────────────────────────────────────────

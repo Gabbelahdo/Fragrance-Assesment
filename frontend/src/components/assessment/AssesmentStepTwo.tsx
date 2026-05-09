@@ -9,7 +9,7 @@ import type { Step2Values } from "./validation";
 import s from "./AssesmentForm.module.css";
 
 export function AssesmentStepTwo({
-  register, onSubmit, onBack, countries, isCountriesLoading, errors,
+  register, onSubmit, onBack, countries, isCountriesLoading, errors, welcomeName,
 }: {
   register: UseFormRegister<Step2Values>;
   onSubmit: FormEventHandler<HTMLFormElement>;
@@ -17,6 +17,7 @@ export function AssesmentStepTwo({
   countries: string[];
   isCountriesLoading: boolean;
   errors: FieldErrors<Step2Values>;
+  welcomeName?: string;
 }) {
   return (
     <div className={s.page}>
@@ -27,7 +28,9 @@ export function AssesmentStepTwo({
           </div>
           <h1 className={s.headerTitle}>Din profil</h1>
           <p className={s.headerSubtitle}>
-            Lite om dig hjälper oss ge bättre rekommendationer
+            {welcomeName
+              ? `Välkommen tillbaka, ${welcomeName}! Kontrollera att dina uppgifter stämmer.`
+              : "Lite om dig hjälper oss ge bättre rekommendationer"}
           </p>
         </div>
 

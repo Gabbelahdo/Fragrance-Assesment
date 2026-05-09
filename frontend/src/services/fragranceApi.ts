@@ -1,28 +1,47 @@
-import type { FragranceRecommendation, FragranceType } from "../components/assessment/types";
+import type { FragranceRecommendation } from "../components/assessment/types";
+import type { AssessmentFormValues } from "../components/assessment/validation";
 
 // ---------------------------------------------------------------------------
-// Config — values come from .env.local (local) or Azure App Settings (prod)
+// submitAssessment — POST the full form payload to the FastAPI backend.
 //
-// In development Vite proxies /fragrance-proxy → api.fragella.com/api and
-// injects the API key server-side (Node), so the key never reaches the browser.
-// In production a real backend proxy is required.
+// The backend calls Claude (AI) for 5 fragrance suggestions, enriches each
+// one with live Fragella API data, and returns a ready-to-render list.
+// The Vite dev proxy forwards /api/* → http://localhost:8000 so CORS is not
+// an issue during local development.
 // ---------------------------------------------------------------------------
-const API_URL = import.meta.env.DEV
-  ? '/fragrance-proxy'                                      // Vite dev proxy
-  : (import.meta.env.VITE_FRAGRANCE_API_URL as string);    // prod — needs backend proxy
+export async function submitAssessment(
+  payload: AssessmentFormValues
+): Promise<FragranceRecommendation[]> {
+  const response = await fetch("/api/ai/recommend", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    // The backend model has camelCase aliases so we can send the form
+    // values as-is — no key conversion needed.
+    body: JSON.stringify(payload),
+  });
 
-// Only send the key from the browser in production builds.
-// In dev the proxy (vite.config.ts) adds it in Node.
-const API_KEY: string | null = import.meta.env.DEV
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw new Error(`Backend error ${response.status}: ${errorText}`);
+  }
+
+  const data: FragranceRecommendation[] = await response.json();
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy direct-Fragella helpers (kept for the /fragrances/search fallback
+// and for any future standalone lookups).
+// ---------------------------------------------------------------------------
+
+const FRAGELLA_URL = import.meta.env.DEV
+  ? "/fragrance-proxy"
+  : (import.meta.env.VITE_FRAGRANCE_API_URL as string);
+
+const FRAGELLA_KEY: string | null = import.meta.env.DEV
   ? null
   : (import.meta.env.VITE_FRAGRANCE_API_KEY as string);
 
-// ---------------------------------------------------------------------------
-// Fragella API response shape
-// Docs: https://api.fragella.com
-// GET /api/v1/fragrances?search={name}&limit=1
-// Header: x-api-key: {key}
-// ---------------------------------------------------------------------------
 interface FragellaNote {
   name: string;
   imageUrl: string;
@@ -49,9 +68,6 @@ interface FragellaResult {
   Popularity: string | null;
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 function flattenNotes(notes: FragellaResult["Notes"] | null | undefined): string[] {
   if (!notes) return [];
   return [
@@ -62,48 +78,27 @@ function flattenNotes(notes: FragellaResult["Notes"] | null | undefined): string
 }
 
 function formatPrice(price: string | null): string {
-  if (!price) return "Pris ej tillgängligt";
+  if (!price) return "Price not available";
   const num = parseFloat(price);
-  if (isNaN(num)) return "Pris ej tillgängligt";
+  if (isNaN(num)) return "Price not available";
   return `${Math.round(num)} kr`;
 }
 
-function inferType(gender: string | null, popularity: string | null): FragranceType {
-  // Fragella has no niche/designer field — infer from popularity as a proxy
-  // This can be refined once AI integration is in place (AI returns type directly)
-  if (popularity === "Low" || popularity === "Very Low") return "niche";
-  return "designer";
-}
-
-// ---------------------------------------------------------------------------
-// Fetch one fragrance by name — returns the best match or null
-// ---------------------------------------------------------------------------
 async function fetchFragranceByName(name: string): Promise<FragellaResult | null> {
-  const url = `${API_URL}/v1/fragrances?search=${encodeURIComponent(name)}&limit=1`;
-  console.log(`[fragranceApi] Fetching: ${url}`);
-
+  const url = `${FRAGELLA_URL}/v1/fragrances?search=${encodeURIComponent(name)}&limit=1`;
   const headers: Record<string, string> = {};
-  if (API_KEY) headers["x-api-key"] = API_KEY;
+  if (FRAGELLA_KEY) headers["x-api-key"] = FRAGELLA_KEY;
 
   const response = await fetch(url, { headers });
-
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    console.error(`[fragranceApi] HTTP ${response.status} for "${name}":`, body);
-    return null;
-  }
+  if (!response.ok) return null;
 
   const data: FragellaResult[] = await response.json();
-  console.log(`[fragranceApi] Response for "${name}":`, data);
   return data[0] ?? null;
 }
 
-// ---------------------------------------------------------------------------
-// Public — fetch a list of fragrance names and return enriched recommendations
-// matchScores and types are passed in alongside names (AI will supply these later).
-// ---------------------------------------------------------------------------
+/** @deprecated Use submitAssessment instead — this calls Fragella directly from the browser. */
 export async function fetchRecommendations(
-  names: { name: string; matchScore: number; type?: FragranceType }[]
+  names: { name: string; matchScore: number; type?: FragranceRecommendation["type"] }[]
 ): Promise<FragranceRecommendation[]> {
   const results = await Promise.allSettled(
     names.map(({ name, matchScore, type }, index) =>
@@ -113,23 +108,18 @@ export async function fetchRecommendations(
           id: `${index}-${data.Name}`,
           name: data.Name,
           brand: data.Brand,
-          description: `${data.OilType ?? ""}${data.Longevity ? ` · Lång tid: ${data.Longevity}` : ""}${data.Sillage ? ` · Spridning: ${data.Sillage}` : ""}`.trim() || "Ingen beskrivning tillgänglig.",
+          description:
+            `${data.OilType ?? ""}${data.Longevity ? ` · Longevity: ${data.Longevity}` : ""}${data.Sillage ? ` · Sillage: ${data.Sillage}` : ""}`.trim() ||
+            "No description available.",
           notes: flattenNotes(data.Notes),
           imageUrl: data["Image URL"] ?? undefined,
           matchScore,
-          type: type ?? inferType(data.Gender, data.Popularity),
+          type: type ?? (data.Popularity === "Low" || data.Popularity === "Very Low" ? "niche" : "designer"),
           priceRange: formatPrice(data.Price),
         };
       })
     )
   );
-
-  // Log any failures for debugging
-  results.forEach((r, i) => {
-    if (r.status === "rejected") {
-      console.error(`[fragranceApi] Request ${i} ("${names[i].name}") rejected:`, r.reason);
-    }
-  });
 
   return results
     .filter(
