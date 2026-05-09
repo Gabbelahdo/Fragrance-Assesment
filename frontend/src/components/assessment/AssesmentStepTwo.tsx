@@ -32,14 +32,23 @@ export function AssesmentStepTwo({
         </div>
 
         <div className={s.stepIndicator}>
-          <div className={s.stepDone}>1</div>
+          <div className={s.stepWithLabel}>
+            <div className={s.stepDone}>1</div>
+            <span className={s.stepLabel}>Preferenser</span>
+          </div>
           <div className={s.stepLine} />
-          <div className={s.stepActive}>2</div>
+          <div className={s.stepWithLabel}>
+            <div className={s.stepActive}>2</div>
+            <span className={s.stepLabel}>Din profil</span>
+          </div>
         </div>
 
         <form onSubmit={onSubmit} className={s.form}>
           <div className={s.card}>
             <h2 className={s.sectionTitle}>Om dig</h2>
+            <p className={s.privacyNote}>
+              Vi använder dessa uppgifter enbart för att anpassa dina rekommendationer.
+            </p>
 
             <div className={s.field}>
               <label className={s.fieldLabel}>Namn</label>
@@ -54,34 +63,43 @@ export function AssesmentStepTwo({
               )}
             </div>
 
-            <div className={s.grid2}>
-              <div className={s.field}>
-                <label className={s.fieldLabel}>Ålder</label>
-                <input
-                  type="number"
-                  placeholder="25"
-                  {...register("age", { valueAsNumber: true })}
-                  className={`${s.input} ${errors.age ? s.inputError : ""}`}
-                />
-                {errors.age && (
-                  <p className={s.fieldError}>{errors.age.message}</p>
-                )}
-              </div>
+            <div className={s.field}>
+              <label className={s.fieldLabel}>Ålder</label>
+              <input
+                type="number"
+                placeholder="25"
+                {...register("age", { valueAsNumber: true })}
+                className={`${s.input} ${errors.age ? s.inputError : ""}`}
+              />
+              {errors.age && (
+                <p className={s.fieldError}>{errors.age.message}</p>
+              )}
+            </div>
 
-              <div className={s.field}>
-                <label className={s.fieldLabel}>Kön</label>
-                <select
-                  {...register("gender")}
-                  className={`${s.select} ${errors.gender ? s.inputError : ""}`}
-                >
-                  <option value="">Välj...</option>
-                  <option value="male">Man</option>
-                  <option value="female">Kvinna</option>
-                </select>
-                {errors.gender && (
-                  <p className={s.fieldError}>{errors.gender.message}</p>
-                )}
+            {/* Gender — card tiles */}
+            <div className={s.field}>
+              <label className={s.fieldLabel}>Kön</label>
+              <div className={s.grid3}>
+                {([
+                  { value: "male", label: "Man", icon: "🧔" },
+                  { value: "female", label: "Kvinna", icon: "👩" },
+                  { value: "unspecified", label: "Anger ej", icon: "🤷" },
+                ] as const).map(({ value, label, icon }) => (
+                  <label key={value} className={s.checkboxCard}>
+                    <input
+                      type="radio"
+                      value={value}
+                      {...register("gender")}
+                      className={s.checkboxHidden}
+                    />
+                    <span className={s.checkboxIcon}>{icon}</span>
+                    <span className={s.checkboxLabel}>{label}</span>
+                  </label>
+                ))}
               </div>
+              {errors.gender && (
+                <p className={s.fieldError}>{errors.gender.message}</p>
+              )}
             </div>
 
             <div className={s.field}>
@@ -107,17 +125,27 @@ export function AssesmentStepTwo({
               )}
             </div>
 
+            {/* Collection size — card tiles */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Antal parfymer i samlingen</label>
-              <select
-                {...register("collectionSize")}
-                className={`${s.select} ${errors.collectionSize ? s.inputError : ""}`}
-              >
-                <option value="">Välj...</option>
-                <option value="lt5">Färre än 5</option>
-                <option value="5to10">5 – 10</option>
-                <option value="10plus">Mer än 10</option>
-              </select>
+              <div className={s.grid3}>
+                {([
+                  { value: "lt5", label: "Färre än 5", icon: "🌱" },
+                  { value: "5to10", label: "5 – 10", icon: "🌿" },
+                  { value: "10plus", label: "Mer än 10", icon: "🌳" },
+                ] as const).map(({ value, label, icon }) => (
+                  <label key={value} className={s.checkboxCard}>
+                    <input
+                      type="radio"
+                      value={value}
+                      {...register("collectionSize")}
+                      className={s.checkboxHidden}
+                    />
+                    <span className={s.checkboxIcon}>{icon}</span>
+                    <span className={s.checkboxLabel}>{label}</span>
+                  </label>
+                ))}
+              </div>
               {errors.collectionSize && (
                 <p className={s.fieldError}>{errors.collectionSize.message}</p>
               )}

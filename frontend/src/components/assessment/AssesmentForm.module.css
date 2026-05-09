@@ -44,13 +44,55 @@
   @apply text-base font-semibold text-purple-200 uppercase tracking-wider mb-4;
 }
 
+.privacyNote {
+  @apply text-xs text-white/40 -mt-2;
+}
+
+/* ── Budget sliders ───────────────────────────────────── */
+
+.budgetRow {
+  @apply flex items-center justify-between;
+}
+
+.budgetDisplay {
+  @apply text-sm font-semibold text-purple-300;
+}
+
+.sliderGroup {
+  @apply flex flex-col gap-3;
+}
+
+.sliderRow {
+  @apply flex items-center gap-3;
+}
+
+.sliderLabel {
+  @apply text-xs text-white/40 w-7 shrink-0;
+}
+
+.slider {
+  @apply w-full cursor-pointer accent-purple-500;
+  height: 4px;
+}
+
+/* ── Grids ────────────────────────────────────────────── */
+
 .grid2 {
   @apply grid grid-cols-2 gap-4;
 }
 
 .grid3 {
-  @apply grid grid-cols-3 gap-3;
+  @apply grid grid-cols-3 gap-2 sm:gap-3;
 }
+
+/* Season: auto-fill so 5 items wrap nicely at any width */
+.seasonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 0.5rem;
+}
+
+/* ── Form fields ─────────────────────────────────────── */
 
 .field {
   @apply flex flex-col gap-1.5;
@@ -63,6 +105,8 @@
 .helperText {
   @apply text-xs text-white/60;
 }
+
+/* ── Note chips ──────────────────────────────────────── */
 
 .noteTagGrid {
   @apply flex flex-wrap gap-2;
@@ -92,6 +136,8 @@
   @apply inline-flex items-center gap-2 rounded-full border border-purple-400 bg-purple-500/25 px-3 py-1 text-xs text-white transition-all hover:bg-purple-500/40;
 }
 
+/* ── Inputs ───────────────────────────────────────────── */
+
 .input {
   @apply w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all text-sm;
 }
@@ -100,8 +146,10 @@
   @apply w-full bg-slate-800/80 border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all text-sm;
 }
 
+/* ── Checkbox / radio cards ──────────────────────────── */
+
 .checkboxCard {
-  @apply flex flex-col items-center gap-2 bg-white/5 border border-white/15 rounded-xl p-4 cursor-pointer hover:border-purple-400 hover:bg-purple-500/10 transition-all;
+  @apply flex flex-col items-center gap-1.5 bg-white/5 border border-white/15 rounded-xl p-3 sm:p-4 cursor-pointer hover:border-purple-400 hover:bg-purple-500/10 transition-all;
 }
 
 .checkboxHidden {
@@ -113,7 +161,7 @@
 }
 
 .checkboxLabel {
-  @apply text-sm text-white/80 font-medium transition-colors;
+  @apply text-xs sm:text-sm text-white/80 font-medium transition-colors text-center;
 }
 
 .checkboxCard:hover .checkboxLabel {
@@ -132,12 +180,32 @@
   filter: drop-shadow(0 0 10px rgba(196, 126, 255, 0.45));
 }
 
+/* ── Buttons ─────────────────────────────────────────── */
+
 .submitButton {
   @apply w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-purple-900/50 hover:shadow-purple-700/40 hover:scale-[1.01];
 }
 
+.stepButtons {
+  @apply flex gap-3;
+}
+
+.backButton {
+  @apply bg-white/10 hover:bg-white/15 text-white/80 font-semibold py-3.5 px-6 rounded-xl transition-all duration-200;
+}
+
+/* ── Step indicator ──────────────────────────────────── */
+
 .stepIndicator {
   @apply flex items-center justify-center gap-3 mb-8;
+}
+
+.stepWithLabel {
+  @apply flex flex-col items-center gap-1;
+}
+
+.stepLabel {
+  @apply text-xs text-white/40;
 }
 
 .stepActive {
@@ -153,19 +221,17 @@
 }
 
 .stepLine {
-  @apply h-px w-12 bg-white/20;
+  @apply h-px w-12 bg-white/20 self-start mt-4;
 }
 
-.stepButtons {
-  @apply flex gap-3;
-}
-
-.backButton {
-  @apply bg-white/10 hover:bg-white/15 text-white/80 font-semibold py-3.5 px-6 rounded-xl transition-all duration-200;
-}
+/* ── Validation errors ───────────────────────────────── */
 
 .fieldError {
   @apply text-xs text-red-400 mt-0.5;
+}
+
+.fieldErrorMt {
+  @apply mt-3;
 }
 
 .inputError {
