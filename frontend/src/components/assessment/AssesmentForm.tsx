@@ -1,6 +1,7 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { FlaskConical, Sparkles, User } from "lucide-react";
 import { AssesmentStepOne } from "./AssesmentStepOne";
 import { AssesmentStepTwo } from "./AssesmentStepTwo";
 import { RecommendationResults } from "./RecommendationResults";
@@ -66,7 +67,6 @@ export function AssessmentForm() {
     },
   });
 
-
   const {
     setValue: setStep1Value,
     formState: { isSubmitted: isStep1Submitted },
@@ -98,12 +98,13 @@ export function AssessmentForm() {
     }
   };
 
-  // Loading – transitioning to step 2
   if (view === "transitioning") {
     return (
       <div className={s.loadingPage}>
         <div className={s.loadingContent}>
-          <span className={s.loadingIcon}>🧴</span>
+          <div className={s.loadingIcon}>
+            <User size={64} strokeWidth={1} />
+          </div>
           <p className={s.loadingTitle}>Förbereder din profil…</p>
           <div className={s.loadingDots}>
             <span className={s.dot} />
@@ -115,12 +116,13 @@ export function AssessmentForm() {
     );
   }
 
-  // Loading – fetching recommendations
   if (view === "loading-results") {
     return (
       <div className={s.loadingPage}>
         <div className={s.loadingContent}>
-          <span className={s.loadingIcon}>✨</span>
+          <div className={s.loadingIcon}>
+            <Sparkles size={64} strokeWidth={1} />
+          </div>
           <p className={s.loadingTitle}>Analyserar dina preferenser…</p>
           <p className={s.loadingSubtitle}>Hittar dina perfekta dofter</p>
           <div className={s.loadingDots}>
@@ -133,7 +135,6 @@ export function AssessmentForm() {
     );
   }
 
-  // Results
   if (view === "results") {
     return (
       <RecommendationResults
@@ -148,7 +149,6 @@ export function AssessmentForm() {
     );
   }
 
-  // Step 2
   if (view === "step2") {
     return (
       <AssesmentStepTwo
@@ -162,7 +162,6 @@ export function AssessmentForm() {
     );
   }
 
-  // Step 1 (default)
   return (
     <AssesmentStepOne
       register={step1Form.register}

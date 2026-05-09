@@ -1,10 +1,11 @@
+import { Gem, Tag, Copy, FlaskConical, SearchX, RotateCcw } from "lucide-react";
 import type { FragranceRecommendation, FragranceType } from "./types";
 import s from "./RecommendationResults.module.css";
 
-const typeConfig: Record<FragranceType, { label: string; icon: string }> = {
-  niche: { label: "Nisch", icon: "💎" },
-  designer: { label: "Designer", icon: "🏷️" },
-  dupe: { label: "Dupe", icon: "♻️" },
+const typeConfig: Record<FragranceType, { label: string; icon: React.ReactNode }> = {
+  niche:    { label: "Nisch",    icon: <Gem  size={12} strokeWidth={2} /> },
+  designer: { label: "Designer", icon: <Tag  size={12} strokeWidth={2} /> },
+  dupe:     { label: "Dupe",     icon: <Copy size={12} strokeWidth={2} /> },
 };
 
 function matchBadgeClass(score: number): string {
@@ -28,7 +29,9 @@ export function RecommendationResults({
     <div className={s.page}>
       <div className={s.container}>
         <div className={s.header}>
-          <div className={s.headerIcon}>✨</div>
+          <div className={s.headerIcon}>
+            <Gem size={52} strokeWidth={1.25} />
+          </div>
           <h1 className={s.headerTitle}>Dina rekommendationer</h1>
           <p className={s.headerSubtitle}>
             Vi hittade {recommendations.length} doft
@@ -38,13 +41,14 @@ export function RecommendationResults({
 
         {sorted.length === 0 ? (
           <div className={s.empty}>
-            <div className={s.emptyIcon}>🔍</div>
+            <div className={s.emptyIcon}>
+              <SearchX size={48} strokeWidth={1.25} />
+            </div>
             <h2 className={s.emptyTitle}>Inga dofter hittades</h2>
-            <p className={s.emptyText}>
-              Försök igen med andra preferenser.
-            </p>
+            <p className={s.emptyText}>Försök igen med andra preferenser.</p>
             <button onClick={onRestart} className={s.restartButton}>
-              ← Gör om analysen
+              <RotateCcw size={15} />
+              <span>Gör om analysen</span>
             </button>
           </div>
         ) : (
@@ -54,13 +58,11 @@ export function RecommendationResults({
                 <article key={frag.id} className={s.card}>
                   <div className={s.imageArea}>
                     {frag.imageUrl ? (
-                      <img
-                        src={frag.imageUrl}
-                        alt={frag.name}
-                        className={s.image}
-                      />
+                      <img src={frag.imageUrl} alt={frag.name} className={s.image} />
                     ) : (
-                      <span className={s.imagePlaceholderIcon}>🧴</span>
+                      <div className={s.imagePlaceholder}>
+                        <FlaskConical size={48} strokeWidth={1} />
+                      </div>
                     )}
                     <span className={`${s.matchBadge} ${matchBadgeClass(frag.matchScore)}`}>
                       {frag.matchScore}% match
@@ -74,7 +76,7 @@ export function RecommendationResults({
                         <h2 className={s.name}>{frag.name}</h2>
                       </div>
                       <span className={s.typeBadge}>
-                        <span aria-hidden="true">{typeConfig[frag.type].icon}</span>
+                        {typeConfig[frag.type].icon}
                         {typeConfig[frag.type].label}
                       </span>
                     </div>
@@ -85,9 +87,7 @@ export function RecommendationResults({
                       <p className={s.notesLabel}>NOTER</p>
                       <div className={s.notesList}>
                         {frag.notes.map((note) => (
-                          <span key={note} className={s.noteChip}>
-                            {note}
-                          </span>
+                          <span key={note} className={s.noteChip}>{note}</span>
                         ))}
                       </div>
                     </div>
@@ -101,7 +101,8 @@ export function RecommendationResults({
             </div>
 
             <button onClick={onRestart} className={s.restartButton}>
-              ← Gör om analysen
+              <RotateCcw size={15} />
+              <span>Gör om analysen</span>
             </button>
           </>
         )}

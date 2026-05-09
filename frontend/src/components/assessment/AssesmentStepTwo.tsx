@@ -1,30 +1,30 @@
 import type { FormEventHandler } from "react";
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
+import {
+  UserCircle, User, User2, Users,
+  Package, Layers, Boxes,
+  ArrowLeft, ArrowRight,
+} from "lucide-react";
 import type { Step2Values } from "./validation";
 import s from "./AssesmentForm.module.css";
 
-type AssesmentStepTwoProps = {
+export function AssesmentStepTwo({
+  register, onSubmit, onBack, countries, isCountriesLoading, errors,
+}: {
   register: UseFormRegister<Step2Values>;
   onSubmit: FormEventHandler<HTMLFormElement>;
   onBack: () => void;
   countries: string[];
   isCountriesLoading: boolean;
   errors: FieldErrors<Step2Values>;
-};
-
-export function AssesmentStepTwo({
-  register,
-  onSubmit,
-  onBack,
-  countries,
-  isCountriesLoading,
-  errors,
-}: AssesmentStepTwoProps) {
+}) {
   return (
     <div className={s.page}>
       <div className={s.container}>
         <div className={s.header}>
-          <div className={s.headerIcon}>👤</div>
+          <div className={s.headerIcon}>
+            <UserCircle size={52} strokeWidth={1.25} />
+          </div>
           <h1 className={s.headerTitle}>Din profil</h1>
           <p className={s.headerSubtitle}>
             Lite om dig hjälper oss ge bättre rekommendationer
@@ -33,7 +33,7 @@ export function AssesmentStepTwo({
 
         <div className={s.stepIndicator}>
           <div className={s.stepWithLabel}>
-            <div className={s.stepDone}>1</div>
+            <div className={s.stepDone}>✓</div>
             <span className={s.stepLabel}>Preferenser</span>
           </div>
           <div className={s.stepLine} />
@@ -52,112 +52,79 @@ export function AssesmentStepTwo({
 
             <div className={s.field}>
               <label className={s.fieldLabel}>Namn</label>
-              <input
-                type="text"
-                placeholder="Ditt namn"
-                {...register("name")}
-                className={`${s.input} ${errors.name ? s.inputError : ""}`}
-              />
-              {errors.name && (
-                <p className={s.fieldError}>{errors.name.message}</p>
-              )}
+              <input type="text" placeholder="Ditt namn" {...register("name")}
+                className={`${s.input} ${errors.name ? s.inputError : ""}`} />
+              {errors.name && <p className={s.fieldError}>{errors.name.message}</p>}
             </div>
 
             <div className={s.field}>
               <label className={s.fieldLabel}>Ålder</label>
-              <input
-                type="number"
-                placeholder="25"
-                {...register("age", { valueAsNumber: true })}
-                className={`${s.input} ${errors.age ? s.inputError : ""}`}
-              />
-              {errors.age && (
-                <p className={s.fieldError}>{errors.age.message}</p>
-              )}
+              <input type="number" placeholder="25" {...register("age", { valueAsNumber: true })}
+                className={`${s.input} ${errors.age ? s.inputError : ""}`} />
+              {errors.age && <p className={s.fieldError}>{errors.age.message}</p>}
             </div>
 
-            {/* Gender — card tiles */}
+            {/* Gender — colorful card tiles */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Kön</label>
               <div className={s.grid3}>
                 {([
-                  { value: "male", label: "Man", icon: "🧔" },
-                  { value: "female", label: "Kvinna", icon: "👩" },
-                  { value: "unspecified", label: "Anger ej", icon: "🤷" },
-                ] as const).map(({ value, label, icon }) => (
-                  <label key={value} className={s.checkboxCard}>
-                    <input
-                      type="radio"
-                      value={value}
-                      {...register("gender")}
-                      className={s.checkboxHidden}
-                    />
+                  { value: "male",        label: "Man",      icon: <User  size={22} strokeWidth={1.5} />, color: "#93c5fd" },
+                  { value: "female",      label: "Kvinna",   icon: <User2 size={22} strokeWidth={1.5} />, color: "#f9a8d4" },
+                  { value: "unspecified", label: "Anger ej", icon: <Users size={22} strokeWidth={1.5} />, color: "#94a3b8" },
+                ] as const).map(({ value, label, icon, color }) => (
+                  <label key={value} className={s.checkboxCard} style={{ "--icon-color": color } as React.CSSProperties}>
+                    <input type="radio" value={value} {...register("gender")} className={s.checkboxHidden} />
                     <span className={s.checkboxIcon}>{icon}</span>
                     <span className={s.checkboxLabel}>{label}</span>
                   </label>
                 ))}
               </div>
-              {errors.gender && (
-                <p className={s.fieldError}>{errors.gender.message}</p>
-              )}
+              {errors.gender && <p className={s.fieldError}>{errors.gender.message}</p>}
             </div>
 
             <div className={s.field}>
               <label className={s.fieldLabel}>Land</label>
-              <select
-                {...register("country")}
+              <select {...register("country")}
                 className={`${s.select} ${errors.country ? s.inputError : ""}`}
                 disabled={isCountriesLoading && countries.length === 0}
               >
                 <option value="">
-                  {isCountriesLoading && countries.length === 0
-                    ? "Laddar länder..."
-                    : "Välj land..."}
+                  {isCountriesLoading && countries.length === 0 ? "Laddar länder..." : "Välj land..."}
                 </option>
-                {countries.map((country) => (
-                  <option key={country} value={country}>
-                    {country}
-                  </option>
-                ))}
+                {countries.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              {errors.country && (
-                <p className={s.fieldError}>{errors.country.message}</p>
-              )}
+              {errors.country && <p className={s.fieldError}>{errors.country.message}</p>}
             </div>
 
-            {/* Collection size — card tiles */}
+            {/* Collection size — colorful card tiles */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Antal parfymer i samlingen</label>
               <div className={s.grid3}>
                 {([
-                  { value: "lt5", label: "Färre än 5", icon: "🌱" },
-                  { value: "5to10", label: "5 – 10", icon: "🌿" },
-                  { value: "10plus", label: "Mer än 10", icon: "🌳" },
-                ] as const).map(({ value, label, icon }) => (
-                  <label key={value} className={s.checkboxCard}>
-                    <input
-                      type="radio"
-                      value={value}
-                      {...register("collectionSize")}
-                      className={s.checkboxHidden}
-                    />
+                  { value: "lt5",    label: "Färre än 5", icon: <Package size={22} strokeWidth={1.5} />, color: "#86efac" },
+                  { value: "5to10",  label: "5 – 10",     icon: <Layers  size={22} strokeWidth={1.5} />, color: "#6ee7b7" },
+                  { value: "10plus", label: "Mer än 10",  icon: <Boxes   size={22} strokeWidth={1.5} />, color: "#5eead4" },
+                ] as const).map(({ value, label, icon, color }) => (
+                  <label key={value} className={s.checkboxCard} style={{ "--icon-color": color } as React.CSSProperties}>
+                    <input type="radio" value={value} {...register("collectionSize")} className={s.checkboxHidden} />
                     <span className={s.checkboxIcon}>{icon}</span>
                     <span className={s.checkboxLabel}>{label}</span>
                   </label>
                 ))}
               </div>
-              {errors.collectionSize && (
-                <p className={s.fieldError}>{errors.collectionSize.message}</p>
-              )}
+              {errors.collectionSize && <p className={s.fieldError}>{errors.collectionSize.message}</p>}
             </div>
           </div>
 
           <div className={s.stepButtons}>
             <button type="button" onClick={onBack} className={s.backButton}>
-              ← Tillbaka
+              <ArrowLeft size={16} />
+              <span>Tillbaka</span>
             </button>
             <button type="submit" className={s.submitButton}>
-              Skicka →
+              <span>Skicka</span>
+              <ArrowRight size={16} />
             </button>
           </div>
         </form>

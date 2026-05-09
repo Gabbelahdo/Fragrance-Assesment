@@ -8,12 +8,14 @@
   @apply w-full max-w-xl;
 }
 
+/* ── Header ──────────────────────────────────────────── */
+
 .header {
   @apply text-center mb-10;
 }
 
 .headerIcon {
-  @apply text-6xl mb-3;
+  @apply flex justify-center mb-4 text-purple-400;
 }
 
 .headerTitle {
@@ -23,6 +25,8 @@
 .headerSubtitle {
   @apply text-purple-300/70 mt-2 text-sm;
 }
+
+/* ── Form ────────────────────────────────────────────── */
 
 .form {
   @apply space-y-5;
@@ -85,7 +89,6 @@
   @apply grid grid-cols-3 gap-2 sm:gap-3;
 }
 
-/* Season: auto-fill so 5 items wrap nicely at any width */
 .seasonGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
@@ -113,7 +116,8 @@
 }
 
 .noteTag {
-  @apply inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white/80 transition-all hover:border-purple-400 hover:text-white;
+  @apply rounded-full border border-white/20 bg-white/5 px-3 py-1.5 text-xs text-white/70
+         transition-all hover:border-purple-400 hover:text-white cursor-pointer;
 }
 
 .noteTagSelected {
@@ -125,7 +129,8 @@
 }
 
 .addNoteButton {
-  @apply shrink-0 rounded-xl border border-purple-400/60 bg-purple-600/30 px-4 text-sm font-medium text-white transition-all hover:bg-purple-500/40;
+  @apply shrink-0 inline-flex items-center gap-1.5 rounded-xl border border-purple-400/60
+         bg-purple-600/30 px-4 text-sm font-medium text-white transition-all hover:bg-purple-500/40;
 }
 
 .selectedTags {
@@ -133,23 +138,29 @@
 }
 
 .selectedTag {
-  @apply inline-flex items-center gap-2 rounded-full border border-purple-400 bg-purple-500/25 px-3 py-1 text-xs text-white transition-all hover:bg-purple-500/40;
+  @apply inline-flex items-center gap-1.5 rounded-full border border-purple-400
+         bg-purple-500/25 px-3 py-1 text-xs text-white transition-all hover:bg-purple-500/40;
 }
 
-/* ── Inputs ───────────────────────────────────────────── */
+/* ── Text inputs ─────────────────────────────────────── */
 
 .input {
-  @apply w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white placeholder-white/30 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all text-sm;
+  @apply w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white
+         placeholder-white/30 focus:outline-none focus:border-purple-400 focus:ring-1
+         focus:ring-purple-400 transition-all text-sm;
 }
 
 .select {
-  @apply w-full bg-slate-800/80 border border-white/15 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-all text-sm;
+  @apply w-full bg-slate-800/80 border border-white/15 rounded-xl px-4 py-2.5 text-white
+         focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400
+         transition-all text-sm;
 }
 
-/* ── Checkbox / radio cards ──────────────────────────── */
+/* ── Checkbox / radio card tiles ─────────────────────── */
 
 .checkboxCard {
-  @apply flex flex-col items-center gap-1.5 bg-white/5 border border-white/15 rounded-xl p-3 sm:p-4 cursor-pointer hover:border-purple-400 hover:bg-purple-500/10 transition-all;
+  @apply flex flex-col items-center gap-2 bg-white/5 border border-white/15 rounded-xl
+         p-3 sm:p-4 cursor-pointer hover:border-purple-400/60 hover:bg-purple-500/10 transition-all;
 }
 
 .checkboxHidden {
@@ -157,11 +168,18 @@
 }
 
 .checkboxIcon {
-  @apply text-2xl;
+  @apply flex items-center justify-center;
+  color: var(--icon-color, rgba(255, 255, 255, 0.45));
+  opacity: 0.75;
+  transition: color 150ms ease, filter 150ms ease, opacity 150ms ease;
 }
 
 .checkboxLabel {
-  @apply text-xs sm:text-sm text-white/80 font-medium transition-colors text-center;
+  @apply text-xs sm:text-sm text-white/70 font-medium transition-colors text-center leading-tight;
+}
+
+.checkboxCard:hover .checkboxIcon {
+  opacity: 1;
 }
 
 .checkboxCard:hover .checkboxLabel {
@@ -169,21 +187,25 @@
 }
 
 .checkboxCard:has(input:checked) {
-  @apply border-purple-400 bg-purple-500/20;
+  border-color: var(--icon-color, #a855f7);
+  background-color: color-mix(in srgb, var(--icon-color, #a855f7) 15%, transparent);
+}
+
+.checkboxCard:has(input:checked) .checkboxIcon {
+  opacity: 1;
+  filter: drop-shadow(0 0 10px var(--icon-color, rgba(196, 126, 255, 0.6)));
 }
 
 .checkboxCard:has(input:checked) .checkboxLabel {
   @apply text-white;
 }
 
-.checkboxCard:has(input:checked) .checkboxIcon {
-  filter: drop-shadow(0 0 10px rgba(196, 126, 255, 0.45));
-}
-
 /* ── Buttons ─────────────────────────────────────────── */
 
 .submitButton {
-  @apply w-full bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-all duration-200 shadow-lg shadow-purple-900/50 hover:shadow-purple-700/40 hover:scale-[1.01];
+  @apply w-full inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500
+         active:bg-purple-700 text-white font-semibold py-3.5 px-6 rounded-xl transition-all
+         duration-200 shadow-lg shadow-purple-900/50 hover:shadow-purple-700/40 hover:scale-[1.01];
 }
 
 .stepButtons {
@@ -191,7 +213,8 @@
 }
 
 .backButton {
-  @apply bg-white/10 hover:bg-white/15 text-white/80 font-semibold py-3.5 px-6 rounded-xl transition-all duration-200;
+  @apply inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 text-white/80
+         font-semibold py-3.5 px-6 rounded-xl transition-all duration-200;
 }
 
 /* ── Step indicator ──────────────────────────────────── */
@@ -209,22 +232,25 @@
 }
 
 .stepActive {
-  @apply w-8 h-8 rounded-full bg-purple-500 text-white text-sm font-bold flex items-center justify-center;
+  @apply w-8 h-8 rounded-full bg-purple-500 text-white text-sm font-bold
+         flex items-center justify-center;
 }
 
 .stepDone {
-  @apply w-8 h-8 rounded-full bg-purple-700 text-purple-200 text-sm font-bold flex items-center justify-center;
+  @apply w-8 h-8 rounded-full bg-purple-700 text-purple-200 text-sm font-bold
+         flex items-center justify-center;
 }
 
 .stepInactive {
-  @apply w-8 h-8 rounded-full bg-white/10 text-white/40 text-sm font-bold flex items-center justify-center;
+  @apply w-8 h-8 rounded-full bg-white/10 text-white/40 text-sm font-bold
+         flex items-center justify-center;
 }
 
 .stepLine {
   @apply h-px w-12 bg-white/20 self-start mt-4;
 }
 
-/* ── Validation errors ───────────────────────────────── */
+/* ── Validation ──────────────────────────────────────── */
 
 .fieldError {
   @apply text-xs text-red-400 mt-0.5;
@@ -241,7 +267,8 @@
 /* ── Loading screen ──────────────────────────────────── */
 
 .loadingPage {
-  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black flex items-center justify-center;
+  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black
+         flex items-center justify-center;
 }
 
 .loadingContent {
@@ -249,7 +276,7 @@
 }
 
 .loadingIcon {
-  @apply text-8xl;
+  @apply text-purple-400;
   animation: floatBounce 1.4s ease-in-out infinite;
 }
 
@@ -270,20 +297,15 @@
   animation: dotPulse 1.2s ease-in-out infinite;
 }
 
-.dot:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.dot:nth-child(3) {
-  animation-delay: 0.4s;
-}
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes floatBounce {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-18px); }
+  50%       { transform: translateY(-18px); }
 }
 
 @keyframes dotPulse {
   0%, 100% { opacity: 0.25; transform: scale(0.8); }
-  50% { opacity: 1; transform: scale(1.2); }
+  50%       { opacity: 1;    transform: scale(1.2); }
 }
