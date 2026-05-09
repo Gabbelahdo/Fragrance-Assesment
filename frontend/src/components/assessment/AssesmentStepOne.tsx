@@ -1,48 +1,28 @@
-// Importerar typ för formulärets submit-handler.
+import { useState } from "react";
 import type { FormEventHandler } from "react";
-// Importerar typer för register-funktion och felobjekt.
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
-// Importerar fasta listor (noter och säsonger) som används i UI:t.
 import { predefinedNotes, seasons } from "./constants";
-// Importerar hjälpfunktion för att visa emoji till en vald not.
 import { getNoteEmoji } from "./noteUtils";
-// Importerar typen för steg 1-formulärets data.
 import type { Step1Values } from "./validation";
-// Importerar CSS-modulens klassnamn.
 import s from "./AssesmentForm.module.css";
 
-
-// Definierar vilka props komponenten behöver från parent.
 type AssesmentStepOneProps = {
-
-    // Funktion som kopplar varje input till react-hook-form.
   register: UseFormRegister<Step1Values>;
-    // Handler som körs när formuläret skickas.
   onSubmit: FormEventHandler<HTMLFormElement>;
-    // Lista med alla noter som användaren har valt.
   selectedNotes: string[];
-    // Nuvarande text i inputen för egen not.
   customNoteInput: string;
-    // Setter för att uppdatera texten i egen not-input.
   setCustomNoteInput: (value: string) => void;
-    // Funktion som togglar en not mellan vald/inte vald.
   toggleNote: (note: string) => void;
-    // Funktion som lägger till texten i customNoteInput som not.
   addCustomNote: () => void;
-    // Funktion som tar bort en vald not.
   removeNote: (note: string) => void;
-    // Keydown-handler för att t.ex. lägga till not med Enter/komma.
   handleCustomNoteKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-    // Hjälpfunktion som returnerar om en not är vald.
   isNoteSelected: (note: string) => boolean;
-    // Valideringsfel för steg 1.
   errors: FieldErrors<Step1Values>;
+  initialBudgetMin: number;
+  initialBudgetMax: number;
 };
 
-// Exporterar steg 1-komponenten.
 export function AssesmentStepOne({
-
-  //tar emot följande funktioner, typer osv
   register,
   onSubmit,
   selectedNotes,
@@ -54,93 +34,115 @@ export function AssesmentStepOne({
   handleCustomNoteKeyDown,
   isNoteSelected,
   errors,
+  initialBudgetMin,
+  initialBudgetMax,
 }: AssesmentStepOneProps) {
+  const [displayMin, setDisplayMin] = useState(initialBudgetMin);
+  const [displayMax, setDisplayMax] = useState(initialBudgetMax);
 
-    // Returnerar hela UI:t för steg 1.
+  const budgetMinField = register("budgetMin", { valueAsNumber: true });
+  const budgetMaxField = register("budgetMax", { valueAsNumber: true });
+
+  // Only show the custom-note chips — predefined notes already show selected state in the grid
+  const predefinedLabels = new Set(predefinedNotes.map((n) => n.label.toLowerCase()));
+  const customSelectedNotes = selectedNotes.filter(
+    (n) => !predefinedLabels.has(n.toLowerCase())
+  );
+
   return (
-
-    // Yttersta wrapper med sidlayout.
     <div className={s.page}>
       <div className={s.container}>
         <div className={s.header}>
           <div className={s.headerIcon}>🧴</div>
           <h1 className={s.headerTitle}>Doftanalys</h1>
           <p className={s.headerSubtitle}>
-            Berätta vad du letar efter vi hittar din perfekta doft!
+            Berätta vad du letar efter — vi hittar din perfekta doft!
           </p>
         </div>
 
-        {/* Visuell stegindikator: aktivt steg 1, inaktivt steg 2. */}
         <div className={s.stepIndicator}>
-          {/* Cirkeln för aktivt steg. */}
-          <div className={s.stepActive}>1</div>
-
-          {/* Linjen mellan stegen. */}
+          <div className={s.stepWithLabel}>
+            <div className={s.stepActive}>1</div>
+            <span className={s.stepLabel}>Preferenser</span>
+          </div>
           <div className={s.stepLine} />
-
-          {/* Cirkeln för nästa steg. */}
-          <div className={s.stepInactive}>2</div>
+          <div className={s.stepWithLabel}>
+            <div className={s.stepInactive}>2</div>
+            <span className={s.stepLabel}>Din profil</span>
+          </div>
         </div>
 
-        {/* Formulär för steg 1. */}
         <form onSubmit={onSubmit} className={s.form}>
-
-          {/* Sektion med preferensfält. */}
           <div className={s.card}>
-
-            {/* Rubriken. */}
             <h2 className={s.sectionTitle}>Preferenser</h2>
 
-            {/* Grid med två kolumner för budgetfälten. */}
-            <div className={s.grid2}>
-
-              {/* Fältgrupp för lägsta budget. */}
-              <div className={s.field}>
-                <label className={s.fieldLabel}>Budget min (kr)</label>
-                {/* Numeric input. */}
-                {/* Endast heltalssteg. */}
-                {/* Placeholder för minbudget. */}
-                {/* Registrerar fältet och konverterar värdet till number. */}
-                {/* Lägger till felklass om valideringen misslyckas. */}
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="0"
-                  {...register("budgetMin", { valueAsNumber: true })}
-                  className={`${s.input} ${errors.budgetMin ? s.inputError : ""}`}
-                />
-                {/* Renderar felmeddelande om budgetMin har fel. */}
-                {errors.budgetMin && (
-                  <p className={s.fieldError}>{errors.budgetMin.message}</p>
-                )}
+            {/* Budget sliders */}
+            <div className={s.field}>
+              <div className={s.budgetRow}>
+                <label className={s.fieldLabel}>Budget</label>
+                <span className={s.budgetDisplay}>
+                  {displayMin.toLocaleString("sv-SE")} –{" "}
+                  {displayMax.toLocaleString("sv-SE")} kr
+                </span>
               </div>
-
-              <div className={s.field}>
-                <label className={s.fieldLabel}>Budget max (kr)</label>
-                <input
-                  type="number"
-                  step="1"
-                  placeholder="1 000"
-                    {...register("budgetMax", { valueAsNumber: true })}
-                    className={`${s.input} ${errors.budgetMax ? s.inputError : ""}`}
-                />
-                  {errors.budgetMax && (
-                    <p className={s.fieldError}>{errors.budgetMax.message}</p>
-                  )}
+              <div className={s.sliderGroup}>
+                <div className={s.sliderRow}>
+                  <span className={s.sliderLabel}>Min</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={20000}
+                    step={100}
+                    className={s.slider}
+                    {...budgetMinField}
+                    onChange={(e) => {
+                      budgetMinField.onChange(e);
+                      setDisplayMin(Number(e.target.value));
+                    }}
+                  />
+                </div>
+                <div className={s.sliderRow}>
+                  <span className={s.sliderLabel}>Max</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={20000}
+                    step={100}
+                    className={s.slider}
+                    {...budgetMaxField}
+                    onChange={(e) => {
+                      budgetMaxField.onChange(e);
+                      setDisplayMax(Number(e.target.value));
+                    }}
+                  />
+                </div>
               </div>
+              {(errors.budgetMin || errors.budgetMax) && (
+                <p className={s.fieldError}>
+                  {errors.budgetMax?.message ?? errors.budgetMin?.message}
+                </p>
+              )}
             </div>
 
+            {/* Season — card tiles */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Säsong</label>
-              <select {...register("season")} className={s.select}>
-                {seasons.map((season) => (
-                  <option key={season.value} value={season.value}>
-                    {season.label}
-                  </option>
+              <div className={s.seasonGrid}>
+                {seasons.map(({ value, label }) => (
+                  <label key={value} className={s.checkboxCard}>
+                    <input
+                      type="radio"
+                      value={value}
+                      {...register("season")}
+                      className={s.checkboxHidden}
+                    />
+                    <span className={s.checkboxLabel}>{label}</span>
+                  </label>
                 ))}
-              </select>
+              </div>
             </div>
 
+            {/* Fragrance gender */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Kön</label>
               <div className={s.grid3}>
@@ -166,35 +168,31 @@ export function AssesmentStepOne({
               )}
             </div>
 
+            {/* Fragrance notes */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Favoritnoter</label>
-              <p className={s.helperText}>Välj bland färdiga noter eller lägg till egna.</p>
+              <p className={s.helperText}>
+                Välj bland färdiga noter eller lägg till egna.
+              </p>
 
               <div className={s.noteTagGrid}>
-                {predefinedNotes.map((note) => {
-                  const isSelected = isNoteSelected(note.label);
-
-
-                 // Returnerar en toggle-knapp för varje not.
-                  return (
-                  // Button för att välja/avvälja not.
-                    <button
-                      key={note.label}
-                      type="button"
-                      onClick={() => toggleNote(note.label)}
-                      className={`${s.noteTag} ${isSelected ? s.noteTagSelected : ""}`}
-                    >
-                      <span aria-hidden="true">{note.emoji}</span>
-                      <span>{note.label}</span>
-                    </button>
-                  );
-                })}
+                {predefinedNotes.map((note) => (
+                  <button
+                    key={note.label}
+                    type="button"
+                    onClick={() => toggleNote(note.label)}
+                    className={`${s.noteTag} ${isNoteSelected(note.label) ? s.noteTagSelected : ""}`}
+                  >
+                    <span aria-hidden="true">{note.emoji}</span>
+                    <span>{note.label}</span>
+                  </button>
+                ))}
               </div>
 
               <div className={s.customNoteRow}>
                 <input
                   type="text"
-                  placeholder="Skriv egen not och tryck Lägg till"
+                  placeholder="Valfri not…"
                   value={customNoteInput}
                   onChange={(event) => setCustomNoteInput(event.target.value)}
                   onKeyDown={handleCustomNoteKeyDown}
@@ -204,31 +202,36 @@ export function AssesmentStepOne({
                   Lägg till
                 </button>
               </div>
-        
-              {!!selectedNotes.length && (
+
+              {/* Only custom notes shown here; predefined notes show selected state in the grid above */}
+              {customSelectedNotes.length > 0 && (
                 <div className={s.selectedTags}>
-                  {selectedNotes.map((note) => (
+                  {customSelectedNotes.map((note) => (
                     <button
                       key={note}
                       type="button"
                       onClick={() => removeNote(note)}
+                      aria-label={`Ta bort ${note}`}
                       className={s.selectedTag}
                     >
-                      <span>{getNoteEmoji(note)}</span>
+                      <span aria-hidden="true">{getNoteEmoji(note)}</span>
                       <span>{note}</span>
-                      <span aria-hidden="true">x</span>
+                      <span aria-hidden="true">×</span>
                     </button>
                   ))}
                 </div>
               )}
 
               <input type="hidden" {...register("notesText")} />
-              {errors.notesText && <p className={s.fieldError}>{errors.notesText.message}</p>}
+              {errors.notesText && (
+                <p className={s.fieldError}>{errors.notesText.message}</p>
+              )}
             </div>
           </div>
 
+          {/* Fragrance type */}
           <div className={s.cardNoSpace}>
-            <h2 className={s.sectionTitleMb}>Typ av Parfym Märke</h2>
+            <h2 className={s.sectionTitleMb}>Typ av parfymmärke</h2>
             <div className={s.grid3}>
               {([
                 { name: "preferNiche", label: "Nisch", icon: "💎" },
@@ -236,13 +239,21 @@ export function AssesmentStepOne({
                 { name: "preferDupe", label: "Dupe", icon: "♻️" },
               ] as const).map(({ name, label, icon }) => (
                 <label key={name} className={s.checkboxCard}>
-                  <input type="checkbox" {...register(name)} className={s.checkboxHidden} />
+                  <input
+                    type="checkbox"
+                    {...register(name)}
+                    className={s.checkboxHidden}
+                  />
                   <span className={s.checkboxIcon}>{icon}</span>
                   <span className={s.checkboxLabel}>{label}</span>
                 </label>
               ))}
             </div>
-            {errors.preferNiche && <p className={s.fieldError}>{errors.preferNiche.message}</p>}
+            {errors.preferNiche && (
+              <p className={`${s.fieldError} ${s.fieldErrorMt}`}>
+                {errors.preferNiche.message}
+              </p>
+            )}
           </div>
 
           <button type="submit" className={s.submitButton}>

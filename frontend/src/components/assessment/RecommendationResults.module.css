@@ -60,8 +60,21 @@
   opacity: 0.18;
 }
 
+/* Match badge — base + color variants */
 .matchBadge {
-  @apply absolute top-3 right-3 bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-full;
+  @apply absolute top-3 right-3 text-white text-xs font-bold px-2.5 py-1 rounded-full;
+}
+
+.matchBadgeHigh {
+  @apply bg-green-600;
+}
+
+.matchBadgeMid {
+  @apply bg-yellow-500;
+}
+
+.matchBadgeLow {
+  @apply bg-orange-500;
 }
 
 /* ── Card body ───────────────────────────────────────── */
@@ -107,21 +120,30 @@
 /* ── Footer ──────────────────────────────────────────── */
 
 .cardFooter {
-  @apply flex items-center justify-between mt-auto pt-1;
+  @apply flex items-center mt-auto pt-1;
 }
 
 .priceRange {
   @apply text-sm text-white/50 font-medium;
 }
 
-.learnMoreButton {
-  @apply text-sm font-semibold text-purple-300 hover:text-white transition-colors duration-150 cursor-pointer;
-}
-
 /* ── Empty state ─────────────────────────────────────── */
 
 .empty {
-  @apply text-center text-white/50 py-16;
+  @apply flex flex-col items-center gap-4 text-center py-16;
+}
+
+.emptyIcon {
+  @apply text-6xl;
+  opacity: 0.5;
+}
+
+.emptyTitle {
+  @apply text-xl font-semibold text-white/70;
+}
+
+.emptyText {
+  @apply text-sm text-white/40;
 }
 
 /* ── Restart button ──────────────────────────────────── */
