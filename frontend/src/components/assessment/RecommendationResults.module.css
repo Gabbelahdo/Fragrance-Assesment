@@ -1,7 +1,8 @@
 @reference "tailwindcss";
 
 .page {
-  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black flex items-start justify-center py-14 px-4;
+  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black
+         flex items-start justify-center py-14 px-4;
 }
 
 .container {
@@ -15,7 +16,7 @@
 }
 
 .headerIcon {
-  @apply text-6xl mb-3;
+  @apply flex justify-center mb-4 text-purple-400;
 }
 
 .headerTitle {
@@ -55,9 +56,8 @@
   @apply h-full w-full object-cover;
 }
 
-.imagePlaceholderIcon {
-  @apply text-8xl;
-  opacity: 0.18;
+.imagePlaceholder {
+  @apply text-white/15 flex items-center justify-center;
 }
 
 /* Match badge — base + color variants */
@@ -65,17 +65,9 @@
   @apply absolute top-3 right-3 text-white text-xs font-bold px-2.5 py-1 rounded-full;
 }
 
-.matchBadgeHigh {
-  @apply bg-green-600;
-}
-
-.matchBadgeMid {
-  @apply bg-yellow-500;
-}
-
-.matchBadgeLow {
-  @apply bg-orange-500;
-}
+.matchBadgeHigh { @apply bg-green-600; }
+.matchBadgeMid  { @apply bg-yellow-500; }
+.matchBadgeLow  { @apply bg-orange-500; }
 
 /* ── Card body ───────────────────────────────────────── */
 
@@ -96,7 +88,8 @@
 }
 
 .typeBadge {
-  @apply shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-purple-200 bg-purple-500/20 border border-purple-400/30 rounded-full px-3 py-1;
+  @apply shrink-0 inline-flex items-center gap-1.5 text-xs font-medium text-purple-200
+         bg-purple-500/20 border border-purple-400/30 rounded-full px-3 py-1;
 }
 
 .description {
@@ -134,8 +127,7 @@
 }
 
 .emptyIcon {
-  @apply text-6xl;
-  opacity: 0.5;
+  @apply text-white/25 flex items-center justify-center;
 }
 
 .emptyTitle {
@@ -149,5 +141,6 @@
 /* ── Restart button ──────────────────────────────────── */
 
 .restartButton {
-  @apply self-center bg-white/10 hover:bg-white/15 text-white/80 font-semibold py-3.5 px-8 rounded-xl transition-all duration-200 cursor-pointer;
+  @apply self-center inline-flex items-center gap-2 bg-white/10 hover:bg-white/15
+         text-white/80 font-semibold py-3.5 px-8 rounded-xl transition-all duration-200 cursor-pointer;
 }

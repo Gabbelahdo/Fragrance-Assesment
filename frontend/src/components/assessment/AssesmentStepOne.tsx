@@ -1,10 +1,24 @@
 import { useState } from "react";
 import type { FormEventHandler } from "react";
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
+import {
+  FlaskConical, Flower2, Sun, Leaf, Snowflake, Globe,
+  User, User2, Users, Gem, Tag, Copy, Plus, X, ArrowRight,
+} from "lucide-react";
 import { predefinedNotes, seasons } from "./constants";
-import { getNoteEmoji } from "./noteUtils";
+import { normalizeNote } from "./noteUtils";
+import type { Season } from "./types";
 import type { Step1Values } from "./validation";
 import s from "./AssesmentForm.module.css";
+
+// Each season gets its own icon and colour
+const seasonConfig: Record<Season, { icon: React.ReactNode; color: string }> = {
+  spring:   { icon: <Flower2   size={22} strokeWidth={1.5} />, color: "#f9a8d4" }, // pink-300
+  summer:   { icon: <Sun       size={22} strokeWidth={1.5} />, color: "#fde68a" }, // amber-200
+  autumn:   { icon: <Leaf      size={22} strokeWidth={1.5} />, color: "#fdba74" }, // orange-300
+  winter:   { icon: <Snowflake size={22} strokeWidth={1.5} />, color: "#93c5fd" }, // blue-300
+  all_year: { icon: <Globe     size={22} strokeWidth={1.5} />, color: "#6ee7b7" }, // emerald-300
+};
 
 type AssesmentStepOneProps = {
   register: UseFormRegister<Step1Values>;
@@ -23,19 +37,9 @@ type AssesmentStepOneProps = {
 };
 
 export function AssesmentStepOne({
-  register,
-  onSubmit,
-  selectedNotes,
-  customNoteInput,
-  setCustomNoteInput,
-  toggleNote,
-  addCustomNote,
-  removeNote,
-  handleCustomNoteKeyDown,
-  isNoteSelected,
-  errors,
-  initialBudgetMin,
-  initialBudgetMax,
+  register, onSubmit, selectedNotes, customNoteInput, setCustomNoteInput,
+  toggleNote, addCustomNote, removeNote, handleCustomNoteKeyDown,
+  isNoteSelected, errors, initialBudgetMin, initialBudgetMax,
 }: AssesmentStepOneProps) {
   const [displayMin, setDisplayMin] = useState(initialBudgetMin);
   const [displayMax, setDisplayMax] = useState(initialBudgetMax);
@@ -43,17 +47,16 @@ export function AssesmentStepOne({
   const budgetMinField = register("budgetMin", { valueAsNumber: true });
   const budgetMaxField = register("budgetMax", { valueAsNumber: true });
 
-  // Only show the custom-note chips — predefined notes already show selected state in the grid
-  const predefinedLabels = new Set(predefinedNotes.map((n) => n.label.toLowerCase()));
-  const customSelectedNotes = selectedNotes.filter(
-    (n) => !predefinedLabels.has(n.toLowerCase())
-  );
+  const predefinedLabels = new Set(predefinedNotes.map((n) => normalizeNote(n.label)));
+  const customSelectedNotes = selectedNotes.filter((n) => !predefinedLabels.has(normalizeNote(n)));
 
   return (
     <div className={s.page}>
       <div className={s.container}>
         <div className={s.header}>
-          <div className={s.headerIcon}>🧴</div>
+          <div className={s.headerIcon}>
+            <FlaskConical size={52} strokeWidth={1.25} />
+          </div>
           <h1 className={s.headerTitle}>Doftanalys</h1>
           <p className={s.headerSubtitle}>
             Berätta vad du letar efter — vi hittar din perfekta doft!
@@ -81,99 +84,74 @@ export function AssesmentStepOne({
               <div className={s.budgetRow}>
                 <label className={s.fieldLabel}>Budget</label>
                 <span className={s.budgetDisplay}>
-                  {displayMin.toLocaleString("sv-SE")} –{" "}
-                  {displayMax.toLocaleString("sv-SE")} kr
+                  {displayMin.toLocaleString("sv-SE")} – {displayMax.toLocaleString("sv-SE")} kr
                 </span>
               </div>
               <div className={s.sliderGroup}>
                 <div className={s.sliderRow}>
                   <span className={s.sliderLabel}>Min</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={20000}
-                    step={100}
-                    className={s.slider}
+                  <input type="range" min={0} max={20000} step={100} className={s.slider}
                     {...budgetMinField}
-                    onChange={(e) => {
-                      budgetMinField.onChange(e);
-                      setDisplayMin(Number(e.target.value));
-                    }}
+                    onChange={(e) => { budgetMinField.onChange(e); setDisplayMin(Number(e.target.value)); }}
                   />
                 </div>
                 <div className={s.sliderRow}>
                   <span className={s.sliderLabel}>Max</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={20000}
-                    step={100}
-                    className={s.slider}
+                  <input type="range" min={0} max={20000} step={100} className={s.slider}
                     {...budgetMaxField}
-                    onChange={(e) => {
-                      budgetMaxField.onChange(e);
-                      setDisplayMax(Number(e.target.value));
-                    }}
+                    onChange={(e) => { budgetMaxField.onChange(e); setDisplayMax(Number(e.target.value)); }}
                   />
                 </div>
               </div>
               {(errors.budgetMin || errors.budgetMax) && (
-                <p className={s.fieldError}>
-                  {errors.budgetMax?.message ?? errors.budgetMin?.message}
-                </p>
+                <p className={s.fieldError}>{errors.budgetMax?.message ?? errors.budgetMin?.message}</p>
               )}
             </div>
 
-            {/* Season — card tiles */}
+            {/* Season — colorful card tiles */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Säsong</label>
               <div className={s.seasonGrid}>
-                {seasons.map(({ value, label }) => (
-                  <label key={value} className={s.checkboxCard}>
-                    <input
-                      type="radio"
-                      value={value}
-                      {...register("season")}
-                      className={s.checkboxHidden}
-                    />
-                    <span className={s.checkboxLabel}>{label}</span>
-                  </label>
-                ))}
+                {seasons.map(({ value, label }) => {
+                  const { icon, color } = seasonConfig[value];
+                  return (
+                    <label
+                      key={value}
+                      className={s.checkboxCard}
+                      style={{ "--icon-color": color } as React.CSSProperties}
+                    >
+                      <input type="radio" value={value} {...register("season")} className={s.checkboxHidden} />
+                      <span className={s.checkboxIcon}>{icon}</span>
+                      <span className={s.checkboxLabel}>{label}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Fragrance gender */}
+            {/* Fragrance gender — colorful tiles */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Kön</label>
               <div className={s.grid3}>
                 {([
-                  { value: "men", label: "Herr", icon: "🧔" },
-                  { value: "women", label: "Dam", icon: "👩" },
-                  { value: "unisex", label: "Unisex", icon: "🧑" },
-                ] as const).map(({ value, label, icon }) => (
-                  <label key={value} className={s.checkboxCard}>
-                    <input
-                      type="radio"
-                      value={value}
-                      {...register("fragranceGender")}
-                      className={s.checkboxHidden}
-                    />
+                  { value: "men",    label: "Herr",   icon: <User  size={22} strokeWidth={1.5} />, color: "#93c5fd" },
+                  { value: "women",  label: "Dam",    icon: <User2 size={22} strokeWidth={1.5} />, color: "#f9a8d4" },
+                  { value: "unisex", label: "Unisex", icon: <Users size={22} strokeWidth={1.5} />, color: "#d8b4fe" },
+                ] as const).map(({ value, label, icon, color }) => (
+                  <label key={value} className={s.checkboxCard} style={{ "--icon-color": color } as React.CSSProperties}>
+                    <input type="radio" value={value} {...register("fragranceGender")} className={s.checkboxHidden} />
                     <span className={s.checkboxIcon}>{icon}</span>
                     <span className={s.checkboxLabel}>{label}</span>
                   </label>
                 ))}
               </div>
-              {errors.fragranceGender && (
-                <p className={s.fieldError}>{errors.fragranceGender.message}</p>
-              )}
+              {errors.fragranceGender && <p className={s.fieldError}>{errors.fragranceGender.message}</p>}
             </div>
 
-            {/* Fragrance notes */}
+            {/* Notes — emoji chips */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Favoritnoter</label>
-              <p className={s.helperText}>
-                Välj bland färdiga noter eller lägg till egna.
-              </p>
+              <p className={s.helperText}>Välj bland färdiga noter eller lägg till egna.</p>
 
               <div className={s.noteTagGrid}>
                 {predefinedNotes.map((note) => (
@@ -194,16 +172,16 @@ export function AssesmentStepOne({
                   type="text"
                   placeholder="Valfri not…"
                   value={customNoteInput}
-                  onChange={(event) => setCustomNoteInput(event.target.value)}
+                  onChange={(e) => setCustomNoteInput(e.target.value)}
                   onKeyDown={handleCustomNoteKeyDown}
                   className={s.input}
                 />
                 <button type="button" onClick={addCustomNote} className={s.addNoteButton}>
+                  <Plus size={14} />
                   Lägg till
                 </button>
               </div>
 
-              {/* Only custom notes shown here; predefined notes show selected state in the grid above */}
               {customSelectedNotes.length > 0 && (
                 <div className={s.selectedTags}>
                   {customSelectedNotes.map((note) => (
@@ -214,50 +192,42 @@ export function AssesmentStepOne({
                       aria-label={`Ta bort ${note}`}
                       className={s.selectedTag}
                     >
-                      <span aria-hidden="true">{getNoteEmoji(note)}</span>
                       <span>{note}</span>
-                      <span aria-hidden="true">×</span>
+                      <X size={12} />
                     </button>
                   ))}
                 </div>
               )}
 
               <input type="hidden" {...register("notesText")} />
-              {errors.notesText && (
-                <p className={s.fieldError}>{errors.notesText.message}</p>
-              )}
+              {errors.notesText && <p className={s.fieldError}>{errors.notesText.message}</p>}
             </div>
           </div>
 
-          {/* Fragrance type */}
+          {/* Fragrance type — colorful tiles */}
           <div className={s.cardNoSpace}>
             <h2 className={s.sectionTitleMb}>Typ av parfymmärke</h2>
             <div className={s.grid3}>
               {([
-                { name: "preferNiche", label: "Nisch", icon: "💎" },
-                { name: "preferDesigner", label: "Designer", icon: "🏷️" },
-                { name: "preferDupe", label: "Dupe", icon: "♻️" },
-              ] as const).map(({ name, label, icon }) => (
-                <label key={name} className={s.checkboxCard}>
-                  <input
-                    type="checkbox"
-                    {...register(name)}
-                    className={s.checkboxHidden}
-                  />
+                { name: "preferNiche",    label: "Nisch",    icon: <Gem  size={22} strokeWidth={1.5} />, color: "#e879f9" },
+                { name: "preferDesigner", label: "Designer", icon: <Tag  size={22} strokeWidth={1.5} />, color: "#fde68a" },
+                { name: "preferDupe",     label: "Dupe",     icon: <Copy size={22} strokeWidth={1.5} />, color: "#86efac" },
+              ] as const).map(({ name, label, icon, color }) => (
+                <label key={name} className={s.checkboxCard} style={{ "--icon-color": color } as React.CSSProperties}>
+                  <input type="checkbox" {...register(name)} className={s.checkboxHidden} />
                   <span className={s.checkboxIcon}>{icon}</span>
                   <span className={s.checkboxLabel}>{label}</span>
                 </label>
               ))}
             </div>
             {errors.preferNiche && (
-              <p className={`${s.fieldError} ${s.fieldErrorMt}`}>
-                {errors.preferNiche.message}
-              </p>
+              <p className={`${s.fieldError} ${s.fieldErrorMt}`}>{errors.preferNiche.message}</p>
             )}
           </div>
 
           <button type="submit" className={s.submitButton}>
-            Nästa →
+            <span>Nästa</span>
+            <ArrowRight size={16} />
           </button>
         </form>
       </div>
