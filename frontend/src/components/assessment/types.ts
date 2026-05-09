@@ -1,6 +1,6 @@
 export type Season = "spring" | "summer" | "autumn" | "winter" | "all_year";
 
-export type Gender = "male" | "female";
+export type Gender = "male" | "female" | "unspecified";
 
 export type CollectionSize = "lt5" | "5to10" | "10plus";
 

@@ -80,7 +80,7 @@ export function AssessmentForm() {
 
   const onStep1Submit = () => {
     setView("transitioning");
-    setTimeout(() => setView("step2"), 900);
+    setTimeout(() => setView("step2"), 600);
   };
 
   const onStep2Submit = async (step2Data: Step2Values) => {
@@ -176,6 +176,8 @@ export function AssessmentForm() {
       handleCustomNoteKeyDown={handleCustomNoteKeyDown}
       isNoteSelected={isNoteSelected}
       errors={step1Form.formState.errors}
+      initialBudgetMin={step1Form.getValues("budgetMin")}
+      initialBudgetMax={step1Form.getValues("budgetMax")}
     />
   );
 }
