@@ -83,13 +83,21 @@ export function RecommendationResults({
 
                     <p className={s.description}>{frag.description}</p>
 
+                    {frag.reason && (
+                      <p className={s.reason}>"{frag.reason}"</p>
+                    )}
+
                     <div>
                       <p className={s.notesLabel}>NOTER</p>
-                      <div className={s.notesList}>
-                        {frag.notes.map((note) => (
-                          <span key={note} className={s.noteChip}>{note}</span>
-                        ))}
-                      </div>
+                      {frag.notes.length > 0 ? (
+                        <div className={s.notesList}>
+                          {frag.notes.map((note) => (
+                            <span key={note} className={s.noteChip}>{note}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className={s.notesEmpty}>Inga noter tillgängliga</p>
+                      )}
                     </div>
 
                     <div className={s.cardFooter}>

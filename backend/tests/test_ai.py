@@ -38,7 +38,8 @@ def _make_claude_mock(recommendations: list[dict]):
 def _claude_suggestions():
     return [
         {"name": f"Fragrance {i}", "brand": f"Brand {i}",
-         "match_score": 95 - i * 5, "type": "niche", "reason": "Great match."}
+         "match_score": 95 - i * 5, "type": "niche",
+         "price_range": "800–1 200 SEK", "reason": "Great match."}
         for i in range(5)
     ]
 

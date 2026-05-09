@@ -96,6 +96,12 @@
   @apply text-white/60 text-sm leading-relaxed;
 }
 
+/* ── AI reason ───────────────────────────────────────── */
+
+.reason {
+  @apply text-xs text-purple-300/60 italic leading-relaxed border-l-2 border-purple-500/30 pl-3;
+}
+
 /* ── Notes ───────────────────────────────────────────── */
 
 .notesLabel {
@@ -108,6 +114,10 @@
 
 .noteChip {
   @apply inline-block rounded-full border border-white/20 bg-white/5 px-2.5 py-1 text-xs text-white/70;
+}
+
+.notesEmpty {
+  @apply text-xs text-white/25 italic;
 }
 
 /* ── Footer ──────────────────────────────────────────── */

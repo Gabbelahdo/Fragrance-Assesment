@@ -9,6 +9,18 @@ import type { AssessmentFormValues } from "../components/assessment/validation";
 // The Vite dev proxy forwards /api/* → http://localhost:8000 so CORS is not
 // an issue during local development.
 // ---------------------------------------------------------------------------
+/** Typed error thrown by submitAssessment — carries the HTTP status so the UI
+ *  can show a specific message for rate-limit (429) vs server errors (5xx). */
+export class AssessmentError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly detail: string,
+  ) {
+    super(detail);
+    this.name = "AssessmentError";
+  }
+}
+
 export async function submitAssessment(
   payload: AssessmentFormValues
 ): Promise<FragranceRecommendation[]> {
@@ -21,8 +33,14 @@ export async function submitAssessment(
   });
 
   if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
-    throw new Error(`Backend error ${response.status}: ${errorText}`);
+    let detail = "Unknown error";
+    try {
+      const body = await response.json();
+      detail = body?.detail ?? detail;
+    } catch {
+      detail = await response.text().catch(() => detail);
+    }
+    throw new AssessmentError(response.status, detail);
   }
 
   const data: FragranceRecommendation[] = await response.json();

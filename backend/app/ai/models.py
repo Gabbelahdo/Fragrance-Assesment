@@ -27,6 +27,10 @@ class AssessmentPreferences(BaseModel):
     prefer_designer: bool
     prefer_dupe: bool
 
+    # Optional free-text fields (Step 1)
+    description_text: str = ""      # what kind of fragrance they're looking for
+    liked_fragrances_text: str = "" # comma-separated brands/names they already like
+
     # Step 2 — user profile
     name: str
     age: int
@@ -42,6 +46,7 @@ class AIFragranceSuggestion(BaseModel):
     brand: str
     match_score: int
     type: Literal["niche", "designer", "dupe"]
+    price_range: str   # estimated market price, e.g. "800–1 200 SEK"
     reason: str
 
 

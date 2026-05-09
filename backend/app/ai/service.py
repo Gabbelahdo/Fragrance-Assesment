@@ -67,6 +67,7 @@ The JSON must have exactly this structure:
       "brand": "Brand Name",
       "match_score": 95,
       "type": "niche",
+      "price_range": "800–1 200 SEK",
       "reason": "1-2 sentences explaining why this matches the preferences."
     }
   ]
@@ -78,6 +79,7 @@ Rules:
 - type: exactly one of "niche", "designer", or "dupe" — no other values.
 - name: use the official name exactly as listed on Fragrantica / Basenotes.
 - brand: the perfume house or parent company.
+- price_range: the real-world retail price range in SEK, e.g. "800–1 200 SEK". Use current market prices.
 - reason: reference the notes, season, budget, and style from the preferences.
 - Only recommend fragrances that genuinely exist and are commercially available.
 - Respect the budget, category whitelist, gender preference, and note preferences.\
@@ -108,17 +110,25 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
     notes = [n.strip() for n in prefs.notes_text.split(",") if n.strip()]
     notes_str = ", ".join(notes) if notes else "no specific preference"
 
-    return f"""\
-Recommend fragrances based on these preferences:
+    lines = [
+        "Recommend fragrances based on these preferences:",
+        "",
+        f"  Budget: {prefs.budget_min}–{prefs.budget_max} SEK",
+        f"  Preferred season: {_SEASON_LABEL.get(prefs.season, prefs.season)}",
+        f"  Fragrance gender: {prefs.fragrance_gender}",
+        f"  Preferred notes: {notes_str}",
+        f"  Preferred categories: {', '.join(categories)}",
+    ]
 
-  Budget: {prefs.budget_min}–{prefs.budget_max} SEK
-  Preferred season: {_SEASON_LABEL.get(prefs.season, prefs.season)}
-  Fragrance gender: {prefs.fragrance_gender}
-  Preferred notes: {notes_str}
-  Preferred categories: {", ".join(categories)}
+    # Optional fields — only included when the user actually filled them in
+    if prefs.description_text.strip():
+        lines.append(f"  What they're looking for: {prefs.description_text.strip()}")
 
-Recommend exactly 5 fragrances.\
-"""
+    if prefs.liked_fragrances_text.strip():
+        lines.append(f"  Fragrances / brands they already like: {prefs.liked_fragrances_text.strip()}")
+
+    lines += ["", "Recommend exactly 5 fragrances."]
+    return "\n".join(lines)
 
 
 # ── JSON extraction ───────────────────────────────────────────────────────────
@@ -230,7 +240,9 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
             image_url   = fragella["image_url"]
             notes       = fragella["notes"]
             description = fragella["description"]
-            price_range = fragella["price_range"]
+            # Prefer Fragella's price; fall back to Claude's estimate
+            fragella_price = (fragella.get("price_range") or "").strip()
+            price_range = fragella_price if fragella_price else suggestion.price_range
         else:
             print(f"[ai.service] Fragella miss for '{suggestion.name}' — using AI data.")
             name        = suggestion.name
@@ -238,7 +250,7 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
             image_url   = None
             notes       = []
             description = "No additional details available."
-            price_range = "Price not available"
+            price_range = suggestion.price_range
 
         results.append(
             RecommendationResult(

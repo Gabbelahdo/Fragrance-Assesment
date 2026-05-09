@@ -142,7 +142,21 @@
          bg-purple-500/25 px-3 py-1 text-xs text-white transition-all hover:bg-purple-500/40;
 }
 
+/* ── Optional field badge ────────────────────────────── */
+
+.optionalBadge {
+  @apply ml-2 text-[10px] font-normal text-white/30 normal-case tracking-normal
+         border border-white/15 rounded-full px-2 py-0.5 align-middle;
+}
+
 /* ── Text inputs ─────────────────────────────────────── */
+
+.textarea {
+  @apply w-full bg-white/5 border border-white/15 rounded-xl px-4 py-3 text-white
+         placeholder-white/30 focus:outline-none focus:border-purple-400 focus:ring-1
+         focus:ring-purple-400 transition-all text-sm resize-none;
+  min-height: 80px;
+}
 
 .input {
   @apply w-full bg-white/5 border border-white/15 rounded-xl px-4 py-2.5 text-white
@@ -308,4 +322,41 @@
 @keyframes dotPulse {
   0%, 100% { opacity: 0.25; transform: scale(0.8); }
   50%       { opacity: 1;    transform: scale(1.2); }
+}
+
+/* ── Error screen ────────────────────────────────────── */
+
+.errorPage {
+  @apply min-h-screen bg-gradient-to-br from-purple-950 via-slate-900 to-black
+         flex items-center justify-center px-4;
+}
+
+.errorContent {
+  @apply flex flex-col items-center gap-5 text-center max-w-sm;
+}
+
+.errorIcon {
+  @apply text-red-400/80;
+}
+
+.errorTitle {
+  @apply text-white text-xl font-semibold tracking-tight;
+}
+
+.errorMessage {
+  @apply text-white/50 text-sm leading-relaxed -mt-2;
+}
+
+.errorActions {
+  @apply flex flex-col gap-3 w-full mt-2;
+}
+
+.retryButton {
+  @apply inline-flex items-center justify-center gap-2 bg-purple-600 hover:bg-purple-500
+         text-white font-semibold py-3 px-8 rounded-xl transition-all duration-200 cursor-pointer w-full;
+}
+
+.errorBackButton {
+  @apply inline-flex items-center justify-center gap-2 bg-white/8 hover:bg-white/12
+         text-white/70 font-medium py-3 px-8 rounded-xl transition-all duration-200 cursor-pointer w-full;
 }

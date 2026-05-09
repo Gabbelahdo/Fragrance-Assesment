@@ -15,7 +15,7 @@ from tests.conftest import VALID_PREFERENCES
 def _claude_mock():
     payload = json.dumps({"recommendations": [
         {"name": f"F{i}", "brand": "B", "match_score": 90 - i,
-         "type": "niche", "reason": "ok"}
+         "type": "niche", "price_range": "800–1 200 SEK", "reason": "ok"}
         for i in range(5)
     ]})
     msg = MagicMock()

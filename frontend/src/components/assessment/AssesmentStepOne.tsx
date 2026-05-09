@@ -34,12 +34,21 @@ type AssesmentStepOneProps = {
   errors: FieldErrors<Step1Values>;
   initialBudgetMin: number;
   initialBudgetMax: number;
+  // Liked fragrances chip field
+  likedFragrances: string[];
+  likedFragranceInput: string;
+  setLikedFragranceInput: (value: string) => void;
+  addLikedFragrance: () => void;
+  removeLikedFragrance: (chip: string) => void;
+  handleLikedFragranceKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 };
 
 export function AssesmentStepOne({
   register, onSubmit, selectedNotes, customNoteInput, setCustomNoteInput,
   toggleNote, addCustomNote, removeNote, handleCustomNoteKeyDown,
   isNoteSelected, errors, initialBudgetMin, initialBudgetMax,
+  likedFragrances, likedFragranceInput, setLikedFragranceInput,
+  addLikedFragrance, removeLikedFragrance, handleLikedFragranceKeyDown,
 }: AssesmentStepOneProps) {
   const [displayMin, setDisplayMin] = useState(initialBudgetMin);
   const [displayMax, setDisplayMax] = useState(initialBudgetMax);
@@ -146,6 +155,62 @@ export function AssesmentStepOne({
                 ))}
               </div>
               {errors.fragranceGender && <p className={s.fieldError}>{errors.fragranceGender.message}</p>}
+            </div>
+
+            {/* Free description — optional */}
+            <div className={s.field}>
+              <label className={s.fieldLabel}>
+                Vad söker du?
+                <span className={s.optionalBadge}>valfritt</span>
+              </label>
+              <p className={s.helperText}>Beskriv fritt vad du har i åtanke.</p>
+              <textarea
+                placeholder="T.ex. en varm och kryddig doft för höst och vinter, inte för söt…"
+                {...register("descriptionText")}
+                className={s.textarea}
+              />
+            </div>
+
+            {/* Liked fragrances chips — optional */}
+            <div className={s.field}>
+              <label className={s.fieldLabel}>
+                Parfymer du gillar
+                <span className={s.optionalBadge}>valfritt</span>
+              </label>
+              <p className={s.helperText}>
+                Ange parfymnamn eller märken — tryck Enter eller komma för att lägga till.
+              </p>
+              <div className={s.customNoteRow}>
+                <input
+                  type="text"
+                  placeholder="T.ex. Sauvage, Tom Ford, Black Afgano…"
+                  value={likedFragranceInput}
+                  onChange={(e) => setLikedFragranceInput(e.target.value)}
+                  onKeyDown={handleLikedFragranceKeyDown}
+                  className={s.input}
+                />
+                <button type="button" onClick={addLikedFragrance} className={s.addNoteButton}>
+                  <Plus size={14} />
+                  Lägg till
+                </button>
+              </div>
+              {likedFragrances.length > 0 && (
+                <div className={s.selectedTags}>
+                  {likedFragrances.map((chip) => (
+                    <button
+                      key={chip}
+                      type="button"
+                      onClick={() => removeLikedFragrance(chip)}
+                      aria-label={`Ta bort ${chip}`}
+                      className={s.selectedTag}
+                    >
+                      <span>{chip}</span>
+                      <X size={12} />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <input type="hidden" {...register("likedFragrancesText")} />
             </div>
 
             {/* Notes — emoji chips */}
