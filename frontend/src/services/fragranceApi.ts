@@ -2,9 +2,20 @@ import type { FragranceRecommendation, FragranceType } from "../components/asses
 
 // ---------------------------------------------------------------------------
 // Config — values come from .env.local (local) or Azure App Settings (prod)
+//
+// In development Vite proxies /fragrance-proxy → api.fragella.com/api and
+// injects the API key server-side (Node), so the key never reaches the browser.
+// In production a real backend proxy is required.
 // ---------------------------------------------------------------------------
-const API_URL = import.meta.env.VITE_FRAGRANCE_API_URL as string;
-const API_KEY = import.meta.env.VITE_FRAGRANCE_API_KEY as string;
+const API_URL = import.meta.env.DEV
+  ? '/fragrance-proxy'                                      // Vite dev proxy
+  : (import.meta.env.VITE_FRAGRANCE_API_URL as string);    // prod — needs backend proxy
+
+// Only send the key from the browser in production builds.
+// In dev the proxy (vite.config.ts) adds it in Node.
+const API_KEY: string | null = import.meta.env.DEV
+  ? null
+  : (import.meta.env.VITE_FRAGRANCE_API_KEY as string);
 
 // ---------------------------------------------------------------------------
 // Fragella API response shape
@@ -71,11 +82,10 @@ async function fetchFragranceByName(name: string): Promise<FragellaResult | null
   const url = `${API_URL}/v1/fragrances?search=${encodeURIComponent(name)}&limit=1`;
   console.log(`[fragranceApi] Fetching: ${url}`);
 
-  const response = await fetch(url, {
-    headers: {
-      "x-api-key": API_KEY,
-    },
-  });
+  const headers: Record<string, string> = {};
+  if (API_KEY) headers["x-api-key"] = API_KEY;
+
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
