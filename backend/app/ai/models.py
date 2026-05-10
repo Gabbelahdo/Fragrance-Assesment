@@ -28,8 +28,9 @@ class AssessmentPreferences(BaseModel):
     prefer_dupe: bool
 
     # Optional free-text fields (Step 1)
-    description_text: str = ""      # what kind of fragrance they're looking for
-    liked_fragrances_text: str = "" # comma-separated brands/names they already like
+    description_text: str = ""       # what kind of fragrance they're looking for
+    liked_brands_text: str = ""      # comma-separated brands they already like
+    liked_fragrances_text: str = ""  # comma-separated specific fragrances they already like
 
     # Step 2 — user profile
     name: str

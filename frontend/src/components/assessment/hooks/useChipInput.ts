@@ -29,5 +29,15 @@ export function useChipInput() {
     }
   };
 
-  return { chips, input, setInput, addChip, removeChip, handleKeyDown };
+  /** Add a chip directly by value — bypasses input state (safe in onSelectSuggestion). */
+  const addChipValue = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+    const lower = trimmed.toLowerCase();
+    setChips((prev) =>
+      prev.some((c) => c.toLowerCase() === lower) ? prev : [...prev, trimmed],
+    );
+  };
+
+  return { chips, input, setInput, addChip, addChipValue, removeChip, handleKeyDown };
 }

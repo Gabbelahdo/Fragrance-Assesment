@@ -42,11 +42,24 @@ export function AssessmentForm() {
     handleCustomNoteKeyDown, isNoteSelected,
   } = useNoteChips();
 
+  // Liked brands chip input
+  const {
+    chips: likedBrands,
+    input: likedBrandInput,
+    setInput: setLikedBrandInput,
+    addChip: addLikedBrand,
+    addChipValue: addLikedBrandValue,
+    removeChip: removeLikedBrand,
+    handleKeyDown: handleLikedBrandKeyDown,
+  } = useChipInput();
+
+  // Liked fragrances chip input
   const {
     chips: likedFragrances,
     input: likedFragranceInput,
     setInput: setLikedFragranceInput,
     addChip: addLikedFragrance,
+    addChipValue: addLikedFragranceValue,
     removeChip: removeLikedFragrance,
     handleKeyDown: handleLikedFragranceKeyDown,
   } = useChipInput();
@@ -56,7 +69,8 @@ export function AssessmentForm() {
     defaultValues: {
       budgetMin: 0, budgetMax: 10000,
       season: "all_year", fragranceGender: "unisex",
-      notesText: "", descriptionText: "", likedFragrancesText: "",
+      notesText: "", descriptionText: "",
+      likedBrandsText: "", likedFragrancesText: "",
       preferNiche: false, preferDesigner: false, preferDupe: false,
     },
   });
@@ -72,6 +86,11 @@ export function AssessmentForm() {
   useEffect(() => {
     setStep1Value("notesText", selectedNotes.join(", "), { shouldValidate: isStep1Submitted });
   }, [selectedNotes, setStep1Value, isStep1Submitted]);
+
+  // ── Sync liked brands chips into hidden field ─────────────────────────────
+  useEffect(() => {
+    setStep1Value("likedBrandsText", likedBrands.join(", "));
+  }, [likedBrands, setStep1Value]);
 
   // ── Sync liked fragrances chips into hidden field ──────────────────────────
   useEffect(() => {
@@ -263,10 +282,18 @@ export function AssessmentForm() {
       errors={step1Form.formState.errors}
       initialBudgetMin={step1Form.getValues("budgetMin")}
       initialBudgetMax={step1Form.getValues("budgetMax")}
+      likedBrands={likedBrands}
+      likedBrandInput={likedBrandInput}
+      setLikedBrandInput={setLikedBrandInput}
+      addLikedBrand={addLikedBrand}
+      addLikedBrandValue={addLikedBrandValue}
+      removeLikedBrand={removeLikedBrand}
+      handleLikedBrandKeyDown={handleLikedBrandKeyDown}
       likedFragrances={likedFragrances}
       likedFragranceInput={likedFragranceInput}
       setLikedFragranceInput={setLikedFragranceInput}
       addLikedFragrance={addLikedFragrance}
+      addLikedFragranceValue={addLikedFragranceValue}
       removeLikedFragrance={removeLikedFragrance}
       handleLikedFragranceKeyDown={handleLikedFragranceKeyDown}
     />

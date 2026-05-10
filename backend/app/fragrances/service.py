@@ -96,6 +96,49 @@ async def _cache_set(name: str, data: dict) -> None:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+async def search_suggestions(
+    query: str,
+    suggest_type: str = "fragrance",
+    limit: int = 8,
+) -> list[dict]:
+    """
+    Return autocomplete suggestions from Fragella for a partial query.
+
+    suggest_type="fragrance"  → list of {name, brand} pairs
+    suggest_type="brand"      → list of unique {name} brand names
+    """
+    url = f"{settings.fragrance_api_url}/v1/fragrances"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                url,
+                params={"search": query, "limit": limit},
+                headers={"x-api-key": settings.fragrance_api_key},
+            )
+            resp.raise_for_status()
+            data: list[dict] = resp.json()
+    except Exception as exc:
+        print(f"[fragrances.service] Suggestion search failed for '{query}': {exc}")
+        return []
+
+    if suggest_type == "brand":
+        seen: set[str] = set()
+        brands: list[dict] = []
+        for item in data:
+            brand = (item.get("Brand") or "").strip()
+            if brand and brand.lower() not in seen:
+                seen.add(brand.lower())
+                brands.append({"name": brand})
+        return brands
+
+    # default: fragrance
+    return [
+        {"name": (item.get("Name") or "").strip(), "brand": (item.get("Brand") or "").strip()}
+        for item in data
+        if item.get("Name")
+    ]
+
+
 async def lookup_fragrance(name: str) -> dict | None:
     """
     Return normalised Fragella data for a fragrance name.

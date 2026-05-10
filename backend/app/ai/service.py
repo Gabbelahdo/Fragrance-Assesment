@@ -124,8 +124,11 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
     if prefs.description_text.strip():
         lines.append(f"  What they're looking for: {prefs.description_text.strip()}")
 
+    if prefs.liked_brands_text.strip():
+        lines.append(f"  Fragrance brands they like: {prefs.liked_brands_text.strip()}")
+
     if prefs.liked_fragrances_text.strip():
-        lines.append(f"  Fragrances / brands they already like: {prefs.liked_fragrances_text.strip()}")
+        lines.append(f"  Specific fragrances they like: {prefs.liked_fragrances_text.strip()}")
 
     lines += ["", "Recommend exactly 5 fragrances."]
     return "\n".join(lines)
@@ -150,14 +153,16 @@ def _extract_json(text: str) -> dict:
 def _preference_hash(prefs: AssessmentPreferences) -> str:
     """Stable SHA-256 fingerprint of the fragrance preferences (not personal data)."""
     key = {
-        "budget_min":       prefs.budget_min,
-        "budget_max":       prefs.budget_max,
-        "season":           prefs.season,
-        "fragrance_gender": prefs.fragrance_gender,
-        "notes_text":       prefs.notes_text.strip().lower(),
-        "prefer_niche":     prefs.prefer_niche,
-        "prefer_designer":  prefs.prefer_designer,
-        "prefer_dupe":      prefs.prefer_dupe,
+        "budget_min":            prefs.budget_min,
+        "budget_max":            prefs.budget_max,
+        "season":                prefs.season,
+        "fragrance_gender":      prefs.fragrance_gender,
+        "notes_text":            prefs.notes_text.strip().lower(),
+        "prefer_niche":          prefs.prefer_niche,
+        "prefer_designer":       prefs.prefer_designer,
+        "prefer_dupe":           prefs.prefer_dupe,
+        "liked_brands_text":     prefs.liked_brands_text.strip().lower(),
+        "liked_fragrances_text": prefs.liked_fragrances_text.strip().lower(),
     }
     return hashlib.sha256(json.dumps(key, sort_keys=True).encode()).hexdigest()
 

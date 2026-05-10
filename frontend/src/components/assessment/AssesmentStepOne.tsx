@@ -3,21 +3,24 @@ import type { FormEventHandler } from "react";
 import type { FieldErrors, UseFormRegister } from "react-hook-form";
 import {
   FlaskConical, Flower2, Sun, Leaf, Snowflake, Globe,
-  User, User2, Users, Gem, Tag, Copy, Plus, X, ArrowRight,
+  User, User2, Users, Gem, Tag, Copy, ArrowRight,
 } from "lucide-react";
 import { predefinedNotes, seasons } from "./constants";
 import { normalizeNote } from "./noteUtils";
+import { DropdownChipInput } from "./DropdownChipInput";
+import { useFragellaSuggest } from "./hooks/useFragellaSuggest";
+import { useNoteSuggest } from "./hooks/useNoteSuggest";
 import type { Season } from "./types";
 import type { Step1Values } from "./validation";
 import s from "./AssesmentForm.module.css";
 
 // Each season gets its own icon and colour
 const seasonConfig: Record<Season, { icon: React.ReactNode; color: string }> = {
-  spring:   { icon: <Flower2   size={22} strokeWidth={1.5} />, color: "#f9a8d4" }, // pink-300
-  summer:   { icon: <Sun       size={22} strokeWidth={1.5} />, color: "#fde68a" }, // amber-200
-  autumn:   { icon: <Leaf      size={22} strokeWidth={1.5} />, color: "#fdba74" }, // orange-300
-  winter:   { icon: <Snowflake size={22} strokeWidth={1.5} />, color: "#93c5fd" }, // blue-300
-  all_year: { icon: <Globe     size={22} strokeWidth={1.5} />, color: "#6ee7b7" }, // emerald-300
+  spring:   { icon: <Flower2   size={22} strokeWidth={1.5} />, color: "#f9a8d4" },
+  summer:   { icon: <Sun       size={22} strokeWidth={1.5} />, color: "#fde68a" },
+  autumn:   { icon: <Leaf      size={22} strokeWidth={1.5} />, color: "#fdba74" },
+  winter:   { icon: <Snowflake size={22} strokeWidth={1.5} />, color: "#93c5fd" },
+  all_year: { icon: <Globe     size={22} strokeWidth={1.5} />, color: "#6ee7b7" },
 };
 
 type AssesmentStepOneProps = {
@@ -34,21 +37,33 @@ type AssesmentStepOneProps = {
   errors: FieldErrors<Step1Values>;
   initialBudgetMin: number;
   initialBudgetMax: number;
+  // Liked brands chip field
+  likedBrands: string[];
+  likedBrandInput: string;
+  setLikedBrandInput: (value: string) => void;
+  addLikedBrand: () => void;
+  addLikedBrandValue: (value: string) => void;
+  removeLikedBrand: (chip: string) => void;
+  handleLikedBrandKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
   // Liked fragrances chip field
   likedFragrances: string[];
   likedFragranceInput: string;
   setLikedFragranceInput: (value: string) => void;
   addLikedFragrance: () => void;
+  addLikedFragranceValue: (value: string) => void;
   removeLikedFragrance: (chip: string) => void;
   handleLikedFragranceKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
 };
 
 export function AssesmentStepOne({
-  register, onSubmit, selectedNotes, customNoteInput, setCustomNoteInput,
-  toggleNote, addCustomNote, removeNote, handleCustomNoteKeyDown,
-  isNoteSelected, errors, initialBudgetMin, initialBudgetMax,
+  register, onSubmit,
+  selectedNotes, customNoteInput, setCustomNoteInput,
+  toggleNote, addCustomNote, removeNote, handleCustomNoteKeyDown, isNoteSelected,
+  errors, initialBudgetMin, initialBudgetMax,
+  likedBrands, likedBrandInput, setLikedBrandInput,
+  addLikedBrand, addLikedBrandValue, removeLikedBrand, handleLikedBrandKeyDown,
   likedFragrances, likedFragranceInput, setLikedFragranceInput,
-  addLikedFragrance, removeLikedFragrance, handleLikedFragranceKeyDown,
+  addLikedFragrance, addLikedFragranceValue, removeLikedFragrance, handleLikedFragranceKeyDown,
 }: AssesmentStepOneProps) {
   const [displayMin, setDisplayMin] = useState(initialBudgetMin);
   const [displayMax, setDisplayMax] = useState(initialBudgetMax);
@@ -58,6 +73,11 @@ export function AssesmentStepOne({
 
   const predefinedLabels = new Set(predefinedNotes.map((n) => normalizeNote(n.label)));
   const customSelectedNotes = selectedNotes.filter((n) => !predefinedLabels.has(normalizeNote(n)));
+
+  // ── Live suggestions from Fragella ───────────────────────────────────────────
+  const brandSuggest    = useFragellaSuggest(likedBrandInput, "brand");
+  const fragSuggest     = useFragellaSuggest(likedFragranceInput, "fragrance");
+  const noteSuggestions = useNoteSuggest(customNoteInput, selectedNotes);
 
   return (
     <div className={s.page}>
@@ -171,53 +191,71 @@ export function AssesmentStepOne({
               />
             </div>
 
-            {/* Liked fragrances chips — optional */}
+            {/* Liked brands — optional, with Fragella dropdown */}
+            <div className={s.field}>
+              <label className={s.fieldLabel}>
+                Märken du gillar
+                <span className={s.optionalBadge}>valfritt</span>
+              </label>
+              <p className={s.helperText}>
+                Sök efter doftmärken — välj från listan eller tryck Enter för att lägga till.
+              </p>
+              <DropdownChipInput
+                placeholder="T.ex. Creed, Maison Margiela, Dior…"
+                chips={likedBrands}
+                input={likedBrandInput}
+                setInput={setLikedBrandInput}
+                addChip={addLikedBrand}
+                removeChip={removeLikedBrand}
+                handleKeyDown={handleLikedBrandKeyDown}
+                suggestions={brandSuggest.suggestions.map((s) => ({ primary: s.name }))}
+                isLoading={brandSuggest.isLoading}
+                onSelectSuggestion={(sg) => {
+                  addLikedBrandValue(sg.primary);
+                  setLikedBrandInput("");
+                }}
+                addButtonLabel="Lägg till"
+              />
+              <input type="hidden" {...register("likedBrandsText")} />
+            </div>
+
+            {/* Liked fragrances — optional, with Fragella dropdown */}
             <div className={s.field}>
               <label className={s.fieldLabel}>
                 Parfymer du gillar
                 <span className={s.optionalBadge}>valfritt</span>
               </label>
               <p className={s.helperText}>
-                Ange parfymnamn eller märken — tryck Enter eller komma för att lägga till.
+                Sök efter specifika parfymer — välj från listan eller tryck Enter för att lägga till.
               </p>
-              <div className={s.customNoteRow}>
-                <input
-                  type="text"
-                  placeholder="T.ex. Sauvage, Tom Ford, Black Afgano…"
-                  value={likedFragranceInput}
-                  onChange={(e) => setLikedFragranceInput(e.target.value)}
-                  onKeyDown={handleLikedFragranceKeyDown}
-                  className={s.input}
-                />
-                <button type="button" onClick={addLikedFragrance} className={s.addNoteButton}>
-                  <Plus size={14} />
-                  Lägg till
-                </button>
-              </div>
-              {likedFragrances.length > 0 && (
-                <div className={s.selectedTags}>
-                  {likedFragrances.map((chip) => (
-                    <button
-                      key={chip}
-                      type="button"
-                      onClick={() => removeLikedFragrance(chip)}
-                      aria-label={`Ta bort ${chip}`}
-                      className={s.selectedTag}
-                    >
-                      <span>{chip}</span>
-                      <X size={12} />
-                    </button>
-                  ))}
-                </div>
-              )}
+              <DropdownChipInput
+                placeholder="T.ex. Sauvage, Black Afgano, Aventus…"
+                chips={likedFragrances}
+                input={likedFragranceInput}
+                setInput={setLikedFragranceInput}
+                addChip={addLikedFragrance}
+                removeChip={removeLikedFragrance}
+                handleKeyDown={handleLikedFragranceKeyDown}
+                suggestions={fragSuggest.suggestions.map((s) => ({
+                  primary: s.name,
+                  secondary: s.brand,
+                }))}
+                isLoading={fragSuggest.isLoading}
+                onSelectSuggestion={(sg) => {
+                  addLikedFragranceValue(sg.primary);
+                  setLikedFragranceInput("");
+                }}
+                addButtonLabel="Lägg till"
+              />
               <input type="hidden" {...register("likedFragrancesText")} />
             </div>
 
-            {/* Notes — emoji chips */}
+            {/* Notes — predefined chips + custom dropdown */}
             <div className={s.field}>
               <label className={s.fieldLabel}>Favoritnoter</label>
-              <p className={s.helperText}>Välj bland färdiga noter eller lägg till egna.</p>
+              <p className={s.helperText}>Välj bland färdiga noter eller sök efter fler.</p>
 
+              {/* Quick-click predefined note chips */}
               <div className={s.noteTagGrid}>
                 {predefinedNotes.map((note) => (
                   <button
@@ -232,37 +270,22 @@ export function AssesmentStepOne({
                 ))}
               </div>
 
-              <div className={s.customNoteRow}>
-                <input
-                  type="text"
-                  placeholder="Valfri not…"
-                  value={customNoteInput}
-                  onChange={(e) => setCustomNoteInput(e.target.value)}
-                  onKeyDown={handleCustomNoteKeyDown}
-                  className={s.input}
-                />
-                <button type="button" onClick={addCustomNote} className={s.addNoteButton}>
-                  <Plus size={14} />
-                  Lägg till
-                </button>
-              </div>
-
-              {customSelectedNotes.length > 0 && (
-                <div className={s.selectedTags}>
-                  {customSelectedNotes.map((note) => (
-                    <button
-                      key={note}
-                      type="button"
-                      onClick={() => removeNote(note)}
-                      aria-label={`Ta bort ${note}`}
-                      className={s.selectedTag}
-                    >
-                      <span>{note}</span>
-                      <X size={12} />
-                    </button>
-                  ))}
-                </div>
-              )}
+              {/* Custom note input with dropdown */}
+              <DropdownChipInput
+                placeholder="Sök eller skriv en valfri not…"
+                chips={customSelectedNotes}
+                input={customNoteInput}
+                setInput={setCustomNoteInput}
+                addChip={addCustomNote}
+                removeChip={removeNote}
+                handleKeyDown={handleCustomNoteKeyDown}
+                suggestions={noteSuggestions.map((n) => ({ primary: n }))}
+                onSelectSuggestion={(sg) => {
+                  toggleNote(sg.primary);
+                  setCustomNoteInput("");
+                }}
+                addButtonLabel="Lägg till"
+              />
 
               <input type="hidden" {...register("notesText")} />
               {errors.notesText && <p className={s.fieldError}>{errors.notesText.message}</p>}
