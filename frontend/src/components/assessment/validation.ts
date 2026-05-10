@@ -12,8 +12,8 @@ export const step1Schema = z
     budgetMax: budgetField(),
     season: z.enum(["spring", "summer", "autumn", "winter", "all_year"]),
     fragranceGender: z.enum(["men", "women", "unisex"]),
-    descriptionText: z.string().default(""),
-    likedFragrancesText: z.string().default(""),
+    descriptionText: z.string(),
+    likedFragrancesText: z.string(),
     notesText: z.string().refine(
       (value) =>
         value
