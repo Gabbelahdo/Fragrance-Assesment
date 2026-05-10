@@ -1,6 +1,7 @@
 import type { FragranceRecommendation } from "../components/assessment/types";
 import type { AssessmentFormValues } from "../components/assessment/validation";
 import { apiPath } from "./api";
+import { getStoredToken } from "./userApi";
 
 // ---------------------------------------------------------------------------
 // submitAssessment — POST the full form payload to the FastAPI backend.
@@ -30,9 +31,9 @@ export async function submitAssessment(
   const response = await fetch(apiPath("/ai/recommend"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    // The backend model has camelCase aliases so we can send the form
-    // values as-is — no key conversion needed.
-    body: JSON.stringify(payload),
+    // Include the stored JWT so the backend can verify and link this
+    // assessment to the user's saved profile in the assessments collection.
+    body: JSON.stringify({ ...payload, sessionToken: getStoredToken() ?? "" }),
   });
 
   if (!response.ok) {

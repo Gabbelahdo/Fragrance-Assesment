@@ -18,24 +18,34 @@ def get_db() -> AsyncIOMotorDatabase:
 
 async def ensure_indexes() -> None:
     """
-    Create TTL indexes for the two cache collections.
-    Safe to call on every startup — MongoDB ignores no-op index creation.
-    Silently skips if MongoDB is unavailable (caching is optional).
+    Set up indexes for all collections.
+    - Drops any legacy TTL indexes (caches are now permanent).
+    - Creates a sorted index on assessments.created_at for easy querying.
+    Safe to call on every startup. Silently skips if MongoDB is unavailable.
     """
     db = get_db()
     try:
-        # Recommendation cache expires after 7 days
-        await db["recommendation_cache"].create_index(
+        # Drop legacy TTL indexes — caches are now stored permanently.
+        for col, idx in [
+            ("recommendation_cache", "ttl_recommendation_cache"),
+            ("fragrance_cache",      "ttl_fragrance_cache"),
+        ]:
+            try:
+                await db[col].drop_index(idx)
+                print(f"[database] Dropped legacy TTL index '{idx}'.")
+            except Exception:
+                pass  # index didn't exist — that's fine
+
+        # Assessments — index on created_at for time-based queries/sorting
+        await db["assessments"].create_index(
             "created_at",
-            expireAfterSeconds=7 * 24 * 3600,
-            name="ttl_recommendation_cache",
+            name="assessments_created_at",
         )
-        # Fragrance data cache expires after 30 days
-        await db["fragrance_cache"].create_index(
-            "cached_at",
-            expireAfterSeconds=30 * 24 * 3600,
-            name="ttl_fragrance_cache",
+        # Assessments — index on profile.name for per-user lookups
+        await db["assessments"].create_index(
+            "profile.name",
+            name="assessments_profile_name",
         )
-        print("[database] TTL indexes ensured.")
+        print("[database] Indexes ensured.")
     except Exception as exc:
         print(f"[database] Could not create indexes (MongoDB unavailable?): {exc}")

@@ -32,6 +32,11 @@ class AssessmentPreferences(BaseModel):
     liked_brands_text: str = ""      # comma-separated brands they already like
     liked_fragrances_text: str = ""  # comma-separated specific fragrances they already like
 
+    # Session linkage — not a preference, not included in the cache hash.
+    # Frontend sends the JWT from localStorage so the backend can verify and
+    # link the assessment to the user's saved profile.
+    session_token: str = ""
+
     # Step 2 — user profile
     name: str
     age: int

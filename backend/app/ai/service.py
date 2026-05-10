@@ -25,6 +25,7 @@ from app.ai.models import AIFragranceSuggestion, AssessmentPreferences, Recommen
 from app.core.config import settings
 from app.core.database import get_db
 from app.fragrances import service as fragrance_service
+from app.users import service as user_service
 
 # ── Model selection ───────────────────────────────────────────────────────────
 # claude-opus-4-7  → $5 / $25 per M tokens  — complex niche requests
@@ -275,24 +276,81 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
     return results
 
 
+# ── Assessment permanent store ────────────────────────────────────────────────
+
+async def _store_assessment(
+    prefs: AssessmentPreferences,
+    results: list[RecommendationResult],
+    cache_key: str,
+    session_verified: bool,
+) -> None:
+    """
+    Permanently record every assessment in the `assessments` collection.
+    Stores the full preference set, user profile, session verification status,
+    and the 5 recommendations — no TTL, never auto-deleted.
+    """
+    try:
+        doc = {
+            "created_at":       datetime.now(timezone.utc),
+            "preference_hash":  cache_key,
+            "preferences": {
+                "budget_min":            prefs.budget_min,
+                "budget_max":            prefs.budget_max,
+                "season":                prefs.season,
+                "fragrance_gender":      prefs.fragrance_gender,
+                "notes_text":            prefs.notes_text,
+                "prefer_niche":          prefs.prefer_niche,
+                "prefer_designer":       prefs.prefer_designer,
+                "prefer_dupe":           prefs.prefer_dupe,
+                "description_text":      prefs.description_text,
+                "liked_brands_text":     prefs.liked_brands_text,
+                "liked_fragrances_text": prefs.liked_fragrances_text,
+            },
+            "profile": {
+                "name":            prefs.name,
+                "age":             prefs.age,
+                "gender":          prefs.gender,
+                "country":         prefs.country,
+                "collection_size": prefs.collection_size,
+            },
+            "session_verified": session_verified,
+            "results": [r.model_dump() for r in results],
+        }
+        await get_db()["assessments"].insert_one(doc)
+        print(f"[ai.service] Assessment stored for '{prefs.name}' (verified={session_verified}).")
+    except Exception as exc:
+        print(f"[ai.service] Assessment store error: {exc}")
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 
 async def get_recommendations(prefs: AssessmentPreferences) -> list[RecommendationResult]:
     """
     Return 5 enriched fragrance recommendations for the given preferences.
     Checks the MongoDB recommendation cache before calling Claude.
+    Always records the assessment permanently (cache hit or miss).
     """
+    # Verify session token if provided — used only for the assessments record
+    session_verified = False
+    if prefs.session_token:
+        profile = await user_service.get_profile_from_token(prefs.session_token)
+        session_verified = profile is not None
+
     cache_key = _preference_hash(prefs)
 
     # 1. Try cache
     cached = await _cache_get(cache_key)
     if cached is not None:
+        await _store_assessment(prefs, cached, cache_key, session_verified)
         return cached
 
     # 2. Cache miss — call Claude + Fragella
     results = await _call_claude_and_enrich(prefs)
 
-    # 3. Persist for next time
+    # 3. Persist recommendation for next time
     await _cache_set(cache_key, results)
+
+    # 4. Permanently record this assessment
+    await _store_assessment(prefs, results, cache_key, session_verified)
 
     return results
