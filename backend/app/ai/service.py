@@ -240,9 +240,9 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
             image_url   = fragella["image_url"]
             notes       = fragella["notes"]
             description = fragella["description"]
-            # Prefer Fragella's price; fall back to Claude's estimate
-            fragella_price = (fragella.get("price_range") or "").strip()
-            price_range = fragella_price if fragella_price else suggestion.price_range
+            # Always use Claude's SEK estimate — Fragella returns raw USD values
+            # without currency label, making them misleading when displayed as kr.
+            price_range = suggestion.price_range
         else:
             print(f"[ai.service] Fragella miss for '{suggestion.name}' — using AI data.")
             name        = suggestion.name
