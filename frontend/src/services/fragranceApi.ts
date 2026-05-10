@@ -1,5 +1,6 @@
 import type { FragranceRecommendation } from "../components/assessment/types";
 import type { AssessmentFormValues } from "../components/assessment/validation";
+import { apiPath } from "./api";
 
 // ---------------------------------------------------------------------------
 // submitAssessment — POST the full form payload to the FastAPI backend.
@@ -24,7 +25,7 @@ export class AssessmentError extends Error {
 export async function submitAssessment(
   payload: AssessmentFormValues
 ): Promise<FragranceRecommendation[]> {
-  const response = await fetch("/api/ai/recommend", {
+  const response = await fetch(apiPath("/ai/recommend"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     // The backend model has camelCase aliases so we can send the form

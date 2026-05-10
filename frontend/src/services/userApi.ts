@@ -10,6 +10,8 @@
  * No database is needed — the profile travels inside the token itself.
  */
 
+import { apiPath } from "./api";
+
 const SESSION_KEY = "fragrance_session_token";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
@@ -40,7 +42,7 @@ export interface SavedProfile {
  */
 export async function saveSession(profile: SavedProfile): Promise<void> {
   try {
-    const response = await fetch("/api/users/session", {
+    const response = await fetch(apiPath("/users/session"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(profile),
@@ -65,7 +67,7 @@ export async function loadSession(): Promise<SavedProfile | null> {
   if (!token) return null;
 
   try {
-    const response = await fetch(`/api/users/me?token=${encodeURIComponent(token)}`);
+    const response = await fetch(apiPath(`/users/me?token=${encodeURIComponent(token)}`));
 
     if (!response.ok) {
       clearStoredToken();

@@ -1,5 +1,7 @@
-import { Gem, Tag, Copy, FlaskConical, SearchX, RotateCcw } from "lucide-react";
+import { Gem, Tag, Copy, FlaskConical, SearchX, RotateCcw, ExternalLink } from "lucide-react";
 import type { FragranceRecommendation, FragranceType } from "./types";
+import { AdUnit } from "../ads/AdUnit";
+import { notinoLink, lykoLink } from "../../utils/affiliateLinks";
 import s from "./RecommendationResults.module.css";
 
 const typeConfig: Record<FragranceType, { label: string; icon: React.ReactNode }> = {
@@ -55,6 +57,7 @@ export function RecommendationResults({
           <>
             <div className={s.grid}>
               {sorted.map((frag) => (
+
                 <article key={frag.id} className={s.card}>
                   <div className={s.imageArea}>
                     {frag.imageUrl ? (
@@ -102,11 +105,33 @@ export function RecommendationResults({
 
                     <div className={s.cardFooter}>
                       <span className={s.priceRange}>{frag.priceRange}</span>
+                      <div className={s.buyLinks}>
+                        <a
+                          href={notinoLink(frag.name, frag.brand)}
+                          target="_blank"
+                          rel="noopener noreferrer sponsored"
+                          className={s.buyButton}
+                        >
+                          Notino
+                          <ExternalLink size={11} />
+                        </a>
+                        <a
+                          href={lykoLink(frag.name, frag.brand)}
+                          target="_blank"
+                          rel="noopener noreferrer sponsored"
+                          className={s.buyButton}
+                        >
+                          Lyko
+                          <ExternalLink size={11} />
+                        </a>
+                      </div>
                     </div>
                   </div>
                 </article>
               ))}
             </div>
+
+            <AdUnit />
 
             <button onClick={onRestart} className={s.restartButton}>
               <RotateCcw size={15} />

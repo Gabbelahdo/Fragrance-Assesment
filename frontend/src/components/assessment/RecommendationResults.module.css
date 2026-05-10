@@ -123,11 +123,21 @@
 /* ── Footer ──────────────────────────────────────────── */
 
 .cardFooter {
-  @apply flex items-center mt-auto pt-1;
+  @apply flex items-center justify-between gap-3 mt-auto pt-1 flex-wrap;
 }
 
 .priceRange {
-  @apply text-sm text-white/50 font-medium;
+  @apply text-sm text-white/50 font-medium shrink-0;
+}
+
+.buyLinks {
+  @apply flex gap-1.5 shrink-0;
+}
+
+.buyButton {
+  @apply inline-flex items-center gap-1 text-[11px] font-medium text-purple-300/70
+         border border-purple-400/25 rounded-full px-2.5 py-1
+         hover:text-purple-200 hover:border-purple-400/50 transition-colors;
 }
 
 /* ── Empty state ─────────────────────────────────────── */
