@@ -1,5 +1,4 @@
 """Tests for the user session endpoints (JWT creation and decoding)."""
-import pytest
 from httpx import AsyncClient
 
 from tests.conftest import VALID_PROFILE

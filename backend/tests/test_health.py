@@ -1,5 +1,4 @@
 """Tests for the /health endpoint."""
-import pytest
 from httpx import AsyncClient
 
 

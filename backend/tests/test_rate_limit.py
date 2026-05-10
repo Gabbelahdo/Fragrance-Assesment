@@ -5,7 +5,6 @@ The in-memory store is cleared before each test by the autouse fixture
 in conftest.py, so tests are fully independent.
 """
 import json
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient
 

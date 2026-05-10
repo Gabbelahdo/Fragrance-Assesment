@@ -13,12 +13,14 @@ import { apiPath } from "./api";
 /** Typed error thrown by submitAssessment — carries the HTTP status so the UI
  *  can show a specific message for rate-limit (429) vs server errors (5xx). */
 export class AssessmentError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly detail: string,
-  ) {
+  readonly status: number;
+  readonly detail: string;
+
+  constructor(status: number, detail: string) {
     super(detail);
     this.name = "AssessmentError";
+    this.status = status;
+    this.detail = detail;
   }
 }
 

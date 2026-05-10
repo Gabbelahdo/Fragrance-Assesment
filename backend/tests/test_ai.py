@@ -11,8 +11,7 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient
 
-from app.ai.models import RecommendationResult
-from tests.conftest import VALID_PREFERENCES, FAKE_RECOMMENDATIONS
+from tests.conftest import VALID_PREFERENCES
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
