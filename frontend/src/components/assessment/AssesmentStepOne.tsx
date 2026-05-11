@@ -295,6 +295,9 @@ export function AssesmentStepOne({
           {/* Fragrance type — colorful tiles */}
           <div className={s.cardNoSpace}>
             <h2 className={s.sectionTitleMb}>Typ av parfymmärke</h2>
+            <p className={s.helperText} style={{ marginBottom: "1rem", marginTop: "-0.75rem" }}>
+              Välj en eller flera — AI:n rekommenderar enbart från de valda kategorierna.
+            </p>
             <div className={s.grid3}>
               {([
                 { name: "preferNiche",    label: "Nisch",    icon: <Gem  size={22} strokeWidth={1.5} />, color: "#e879f9" },

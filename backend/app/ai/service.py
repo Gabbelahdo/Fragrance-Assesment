@@ -83,7 +83,19 @@ Rules:
 - price_range: the real-world retail price range in SEK, e.g. "800–1 200 SEK". Use current market prices.
 - reason: reference the notes, season, budget, and style from the preferences.
 - Only recommend fragrances that genuinely exist and are commercially available.
-- Respect the budget, category whitelist, gender preference, and note preferences.\
+- Respect the budget, category whitelist, gender preference, and note preferences.
+
+CATEGORY ENFORCEMENT (critical — never violate this):
+- The user specifies which categories are allowed. Only recommend from those categories.
+- If ONLY "dupe" is selected: every single one of the 5 recommendations MUST be a dupe
+  (budget clone/inspired-by fragrance from brands like Afnan, Lattafa, Armaf, Al Haramain,
+  Rasasi, Ard al Zaafaran, Fragrance World, Zara, etc.). Do NOT include any niche or
+  designer fragrances. type must be "dupe" for all 5.
+- If ONLY "niche" is selected: all 5 must be niche/artisan fragrances. No designers. No dupes.
+- If ONLY "designer" is selected: all 5 must be mainstream designer fragrances. No niche. No dupes.
+- If multiple categories are selected: distribute across the selected categories only.
+- Violating the category restriction is the worst possible error — it directly contradicts
+  the user's explicit preference.\
 """
 
 # ── Season label ──────────────────────────────────────────────────────────────
@@ -130,6 +142,14 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
 
     if prefs.liked_fragrances_text.strip():
         lines.append(f"  Specific fragrances they like: {prefs.liked_fragrances_text.strip()}")
+
+    # Explicit category enforcement reminder in the user message
+    if prefs.prefer_dupe and not prefs.prefer_niche and not prefs.prefer_designer:
+        lines.append("  ⚠️  ONLY dupes allowed — all 5 must be budget/inspired-by fragrances (type=dupe). No niche, no designer.")
+    elif prefs.prefer_niche and not prefs.prefer_designer and not prefs.prefer_dupe:
+        lines.append("  ⚠️  ONLY niche allowed — all 5 must be niche/artisan fragrances (type=niche). No designer, no dupe.")
+    elif prefs.prefer_designer and not prefs.prefer_niche and not prefs.prefer_dupe:
+        lines.append("  ⚠️  ONLY designer allowed — all 5 must be mainstream designer fragrances (type=designer). No niche, no dupe.")
 
     lines += ["", "Recommend exactly 5 fragrances."]
     return "\n".join(lines)
