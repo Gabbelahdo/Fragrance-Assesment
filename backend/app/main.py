@@ -10,6 +10,7 @@ from app.users.router import router as users_router
 from app.fragrances.router import router as fragrances_router
 from app.ai.router import router as ai_router
 from app.feedback.router import router as feedback_router
+from app.admin.router import router as admin_router
 
 
 @asynccontextmanager
@@ -42,6 +43,7 @@ app.include_router(users_router,      prefix="/users",      tags=["Users"])
 app.include_router(fragrances_router, prefix="/fragrances", tags=["Fragrances"])
 app.include_router(ai_router,         prefix="/ai",         tags=["AI"])
 app.include_router(feedback_router,   prefix="/feedback",   tags=["Feedback"])
+app.include_router(admin_router,      prefix="/admin",      tags=["Admin"])
 
 
 @app.get("/health")

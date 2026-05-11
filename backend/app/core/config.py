@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     fragrance_api_key: str
     ai_api_key: str  # Anthropic API key (sk-ant-...)
 
+    # Admin — optional secret for protected admin endpoints (/admin/*)
+    # Set ADMIN_KEY in Azure env vars. Leave empty to disable admin endpoints.
+    admin_key: str = Field(default="", alias="ADMIN_KEY")
+
     # CORS — stored as a comma-separated string so Azure App Settings is simple.
     # Example: CORS_ORIGINS=http://localhost:5173,https://yourapp.azurestaticapps.net
     # We keep it as str here and expose cors_origins as a property to avoid
