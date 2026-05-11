@@ -32,7 +32,7 @@ export function RecommendationResults({
   // Show feedback popup ~1.5 s after results appear
   const [showFeedback, setShowFeedback] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setShowFeedback(true), 1500);
+    const t = setTimeout(() => setShowFeedback(true), 5000);
     return () => clearTimeout(t);
   }, []);
 

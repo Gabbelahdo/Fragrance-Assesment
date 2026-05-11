@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Star, X, CheckCircle } from "lucide-react";
+import { Star, X, CheckCircle, MessageSquare } from "lucide-react";
 import { submitFeedback } from "../../services/feedbackApi";
 import s from "./AssesmentForm.module.css";
 
@@ -34,177 +34,140 @@ export function FeedbackModal({ onClose }: Props) {
     });
     setPhase("done");
     setSubmitting(false);
-    // Auto-close after thank-you message
     setTimeout(onClose, 2500);
   };
 
   return (
-    <div className={s.modalOverlay} onClick={onClose}>
-      <div
-        className={s.modal}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Close button */}
-        <button className={s.modalClose} onClick={onClose} aria-label="Stäng">
-          <X size={18} />
-        </button>
+    /* No overlay — fixed bottom banner, pointer-events only on the banner itself */
+    <div className={s.feedbackBanner} role="dialog" aria-modal="false">
+      {/* Close */}
+      <button className={s.feedbackClose} onClick={onClose} aria-label="Stäng">
+        <X size={16} />
+      </button>
 
-        {/* ── Phase: prompt ── */}
-        {phase === "prompt" && (
-          <div className={s.modalPrompt}>
-            <p className={s.modalTitle}>Vill du hjälpa oss förbättras?</p>
-            <p className={s.modalSub}>Svara på ett kort formulär — det tar under en minut.</p>
-            <div className={s.modalPromptButtons}>
-              <button className={s.modalYesButton} onClick={() => setPhase("form")}>
-                Ja, gärna!
-              </button>
-              <button className={s.modalNoButton} onClick={onClose}>
-                Nej tack
-              </button>
-            </div>
+      {/* ── Phase: prompt ── */}
+      {phase === "prompt" && (
+        <div className={s.feedbackPrompt}>
+          <MessageSquare size={18} className={s.feedbackIcon} strokeWidth={1.5} />
+          <div className={s.feedbackPromptText}>
+            <p className={s.feedbackTitle}>Vill du hjälpa oss förbättras?</p>
+            <p className={s.feedbackSub}>Svara på ett kort formulär — tar under en minut.</p>
           </div>
-        )}
-
-        {/* ── Phase: form ── */}
-        {phase === "form" && (
-          <div className={s.modalForm}>
-            <p className={s.modalTitle}>Berätta vad du tyckte</p>
-
-            {/* Star rating */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>Betyg på rekommendationerna</label>
-              <div className={s.starRow}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button
-                    key={star}
-                    type="button"
-                    className={s.starButton}
-                    onMouseEnter={() => setHover(star)}
-                    onMouseLeave={() => setHover(null)}
-                    onClick={() => setRating(star)}
-                    aria-label={`${star} stjärnor`}
-                  >
-                    <Star
-                      size={28}
-                      strokeWidth={1.5}
-                      className={
-                        (hover ?? rating ?? 0) >= star ? s.starFilled : s.starEmpty
-                      }
-                    />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Comments */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>Kommentarer <span className={s.optionalBadge}>valfritt</span></label>
-              <textarea
-                className={s.modalTextarea}
-                placeholder="Vad tyckte du om rekommendationerna?"
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                rows={3}
-              />
-            </div>
-
-            {/* Name */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>Namn <span className={s.optionalBadge}>valfritt</span></label>
-              <input
-                className={s.modalInput}
-                type="text"
-                placeholder="Ditt namn"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-
-            {/* Gender */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>Kön <span className={s.optionalBadge}>valfritt</span></label>
-              <div className={s.modalRadioRow}>
-                {(["male", "female", "unspecified"] as const).map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    onClick={() => setGender(g)}
-                    className={`${s.modalChip} ${gender === g ? s.modalChipSelected : ""}`}
-                  >
-                    {g === "male" ? "Man" : g === "female" ? "Kvinna" : "Annat"}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Age */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>Ålder <span className={s.optionalBadge}>valfritt</span></label>
-              <input
-                className={s.modalInput}
-                type="number"
-                placeholder="Din ålder"
-                min={0}
-                max={99}
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
-              />
-            </div>
-
-            {/* Collection size */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>Antal parfymer i samlingen <span className={s.optionalBadge}>valfritt</span></label>
-              <div className={s.modalRadioRow}>
-                {([
-                  ["lt5",    "Färre än 5"],
-                  ["5to10",  "5–10"],
-                  ["10plus", "Fler än 10"],
-                ] as const).map(([val, label]) => (
-                  <button
-                    key={val}
-                    type="button"
-                    onClick={() => setCollection(val)}
-                    className={`${s.modalChip} ${collectionSize === val ? s.modalChipSelected : ""}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Email */}
-            <div className={s.modalField}>
-              <label className={s.modalLabel}>E-post <span className={s.optionalBadge}>valfritt</span></label>
-              <input
-                className={s.modalInput}
-                type="email"
-                placeholder="din@email.se"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-
-            <button
-              className={s.modalSubmitButton}
-              onClick={handleSubmit}
-              disabled={submitting}
-            >
-              {submitting ? "Skickar…" : "Skicka feedback"}
+          <div className={s.feedbackPromptButtons}>
+            <button className={s.feedbackYesBtn} onClick={() => setPhase("form")}>
+              Ja, gärna
+            </button>
+            <button className={s.feedbackNoBtn} onClick={onClose}>
+              Nej tack
             </button>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* ── Phase: done ── */}
-        {phase === "done" && (
-          <div className={s.modalDone}>
-            <CheckCircle size={44} strokeWidth={1.25} className={s.modalDoneIcon} />
-            <p className={s.modalTitle}>Tack för din feedback!</p>
-            <p className={s.modalSub}>Det hjälper oss att bli bättre.</p>
+      {/* ── Phase: form ── */}
+      {phase === "form" && (
+        <div className={s.feedbackForm}>
+          <p className={s.feedbackTitle}>Berätta vad du tyckte</p>
+
+          {/* Star rating */}
+          <div className={s.feedbackRow}>
+            <label className={s.feedbackLabel}>Betyg</label>
+            <div className={s.starRow}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  className={s.starButton}
+                  onMouseEnter={() => setHover(star)}
+                  onMouseLeave={() => setHover(null)}
+                  onClick={() => setRating(star)}
+                  aria-label={`${star} stjärnor`}
+                >
+                  <Star
+                    size={26}
+                    strokeWidth={1.5}
+                    className={(hover ?? rating ?? 0) >= star ? s.starFilled : s.starEmpty}
+                  />
+                </button>
+              ))}
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Comments */}
+          <div className={s.feedbackRow}>
+            <label className={s.feedbackLabel}>Kommentarer</label>
+            <textarea
+              className={s.feedbackTextarea}
+              placeholder="Vad tyckte du om rekommendationerna?"
+              value={comments}
+              onChange={(e) => setComments(e.target.value)}
+              rows={2}
+            />
+          </div>
+
+          {/* Name + Age side by side */}
+          <div className={s.feedbackGrid2}>
+            <div className={s.feedbackRow}>
+              <label className={s.feedbackLabel}>Namn</label>
+              <input className={s.feedbackInput} type="text" placeholder="Ditt namn"
+                value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
+            <div className={s.feedbackRow}>
+              <label className={s.feedbackLabel}>Ålder</label>
+              <input className={s.feedbackInput} type="number" placeholder="Din ålder"
+                min={0} max={99} value={age} onChange={(e) => setAge(e.target.value)} />
+            </div>
+          </div>
+
+          {/* Gender */}
+          <div className={s.feedbackRow}>
+            <label className={s.feedbackLabel}>Kön</label>
+            <div className={s.feedbackChipRow}>
+              {(["male", "female", "unspecified"] as const).map((g) => (
+                <button key={g} type="button" onClick={() => setGender(g)}
+                  className={`${s.feedbackChip} ${gender === g ? s.feedbackChipOn : ""}`}>
+                  {g === "male" ? "Man" : g === "female" ? "Kvinna" : "Annat"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Collection size */}
+          <div className={s.feedbackRow}>
+            <label className={s.feedbackLabel}>Antal parfymer i samlingen</label>
+            <div className={s.feedbackChipRow}>
+              {([["lt5","< 5"],["5to10","5–10"],["10plus","10+"]] as const).map(([val,lbl]) => (
+                <button key={val} type="button" onClick={() => setCollection(val)}
+                  className={`${s.feedbackChip} ${collectionSize === val ? s.feedbackChipOn : ""}`}>
+                  {lbl}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Email */}
+          <div className={s.feedbackRow}>
+            <label className={s.feedbackLabel}>E-post</label>
+            <input className={s.feedbackInput} type="email" placeholder="din@email.se"
+              value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+
+          <button className={s.feedbackSubmitBtn} onClick={handleSubmit} disabled={submitting}>
+            {submitting ? "Skickar…" : "Skicka feedback"}
+          </button>
+        </div>
+      )}
+
+      {/* ── Phase: done ── */}
+      {phase === "done" && (
+        <div className={s.feedbackDone}>
+          <CheckCircle size={28} strokeWidth={1.5} className={s.feedbackDoneIcon} />
+          <div>
+            <p className={s.feedbackTitle}>Tack för din feedback!</p>
+            <p className={s.feedbackSub}>Det hjälper oss att bli bättre.</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
