@@ -300,10 +300,10 @@ async def ensure_suggest_seed() -> None:
     """
     Populate the suggest_seed collection if it is empty.
     Safe to call on every startup — is a no-op when data already exists.
-    Version: 1
+    Inserts in small batches to avoid Cosmos DB RU limits.
     """
     try:
-        db = get_db()
+        db  = get_db()
         col = db["suggest_seed"]
 
         count = await col.count_documents({})
@@ -321,20 +321,30 @@ async def ensure_suggest_seed() -> None:
                 "name_lower": brand_name.lower(),
             })
 
-        for i, frag in enumerate(SEED_FRAGRANCES):
+        for frag in SEED_FRAGRANCES:
             slug = f"{frag['name'].lower()}|{frag['brand'].lower()}"
             docs.append({
-                "_id":        f"frag:{slug}",
-                "type":       "fragrance",
-                "name":       frag["name"],
-                "brand":      frag["brand"],
-                "name_lower": frag["name"].lower(),
+                "_id":         f"frag:{slug}",
+                "type":        "fragrance",
+                "name":        frag["name"],
+                "brand":       frag["brand"],
+                "name_lower":  frag["name"].lower(),
                 "brand_lower": frag["brand"].lower(),
             })
 
-        await col.insert_many(docs, ordered=False)
-        print(f"[fragrances.seed] Seeded {len(docs)} suggest documents "
+        # Insert in batches of 20 to stay within Cosmos DB RU limits
+        BATCH = 20
+        inserted = 0
+        for start in range(0, len(docs), BATCH):
+            batch = docs[start : start + BATCH]
+            try:
+                await col.insert_many(batch, ordered=False)
+                inserted += len(batch)
+            except Exception as batch_exc:
+                print(f"[fragrances.seed] Batch {start}–{start+len(batch)} error: {batch_exc}")
+
+        print(f"[fragrances.seed] Seeded {inserted}/{len(docs)} suggest documents "
               f"({len(SEED_BRANDS)} brands, {len(SEED_FRAGRANCES)} fragrances).")
 
     except Exception as exc:
-        print(f"[fragrances.seed] Seed error (non-fatal): {exc}")
+        print(f"[fragrances.seed] Seed error: {exc}")

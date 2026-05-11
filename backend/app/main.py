@@ -50,19 +50,35 @@ app.include_router(admin_router,      prefix="/admin",      tags=["Admin"])
 async def health():
     """Used by Azure App Service health checks. Also reports DB connectivity."""
     from app.core.database import get_db
-    db_status = "unknown"
-    db_name   = "unknown"
+    db_status  = "unknown"
+    write_test = "unknown"
+    db_name    = "unknown"
     counts: dict = {}
     try:
-        db = get_db()
+        db      = get_db()
         db_name = db.name
-        counts = {
-            "suggest_seed":   await db["suggest_seed"].count_documents({}),
-            "feedback":       await db["feedback"].count_documents({}),
-            "assessments":    await db["assessments"].count_documents({}),
+        counts  = {
+            "suggest_seed": await db["suggest_seed"].count_documents({}),
+            "feedback":     await db["feedback"].count_documents({}),
+            "assessments":  await db["assessments"].count_documents({}),
         }
         db_status = "ok"
     except Exception as exc:
-        db_status = f"error: {exc}"
+        db_status = f"read_error: {exc}"
 
-    return {"status": "ok", "db": db_status, "db_name": db_name, "counts": counts}
+    # Quick write test — insert then delete a tiny doc to confirm writes work
+    try:
+        db = get_db()
+        await db["_health_check"].insert_one({"_id": "ping"})
+        await db["_health_check"].delete_one({"_id": "ping"})
+        write_test = "ok"
+    except Exception as exc:
+        write_test = f"error: {exc}"
+
+    return {
+        "status":     "ok",
+        "db":         db_status,
+        "write_test": write_test,
+        "db_name":    db_name,
+        "counts":     counts,
+    }
