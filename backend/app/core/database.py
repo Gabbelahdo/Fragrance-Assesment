@@ -46,6 +46,11 @@ async def ensure_indexes() -> None:
             "profile.name",
             name="assessments_profile_name",
         )
+        # Feedback — index on created_at for time-based queries
+        await db["feedback"].create_index(
+            "created_at",
+            name="feedback_created_at",
+        )
         print("[database] Indexes ensured.")
     except Exception as exc:
         print(f"[database] Could not create indexes (MongoDB unavailable?): {exc}")

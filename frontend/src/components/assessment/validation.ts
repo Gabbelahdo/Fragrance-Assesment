@@ -54,4 +54,5 @@ export const step2Schema = z.object({
 
 export type Step1Values = z.infer<typeof step1Schema>;
 export type Step2Values = z.infer<typeof step2Schema>;
-export type AssessmentFormValues = Step1Values & Step2Values;
+// Step 2 is no longer part of the main flow — the assessment submits with Step1 only.
+export type AssessmentFormValues = Step1Values;

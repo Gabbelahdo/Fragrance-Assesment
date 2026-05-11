@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { Gem, Tag, Copy, FlaskConical, SearchX, RotateCcw, ExternalLink } from "lucide-react";
 import type { FragranceRecommendation, FragranceType } from "./types";
 import { AdUnit } from "../ads/AdUnit";
 import { notinoLink, lykoLink } from "../../utils/affiliateLinks";
+import { FeedbackModal } from "./FeedbackModal";
 import s from "./RecommendationResults.module.css";
 
 const typeConfig: Record<FragranceType, { label: string; icon: React.ReactNode }> = {
@@ -27,7 +29,16 @@ export function RecommendationResults({
 }: RecommendationResultsProps) {
   const sorted = [...recommendations].sort((a, b) => b.matchScore - a.matchScore);
 
+  // Show feedback popup ~1.5 s after results appear
+  const [showFeedback, setShowFeedback] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setShowFeedback(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
+    <>
+    {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
     <div className={s.page}>
       <div className={s.container}>
         <div className={s.header}>
@@ -141,5 +152,6 @@ export function RecommendationResults({
         )}
       </div>
     </div>
+    </>
   );
 }

@@ -1,18 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertTriangle, Clock, RotateCcw, Sparkles, User } from "lucide-react";
+import { AlertTriangle, Clock, RotateCcw, Sparkles } from "lucide-react";
 import { AssesmentStepOne } from "./AssesmentStepOne";
-import { AssesmentStepTwo } from "./AssesmentStepTwo";
 import { RecommendationResults } from "./RecommendationResults";
-import { useCountries } from "./hooks/useCountries";
 import { useChipInput } from "./hooks/useChipInput";
 import { useNoteChips } from "./hooks/useNoteChips";
-import { step1Schema, step2Schema } from "./validation";
-import type { Step1Values, Step2Values } from "./validation";
+import { step1Schema } from "./validation";
+import type { Step1Values } from "./validation";
 import type { FragranceRecommendation } from "./types";
 import { AssessmentError, submitAssessment } from "../../services/fragranceApi";
-import { loadSession, saveSession } from "../../services/userApi";
 import s from "./AssesmentForm.module.css";
 
 // ── Loading messages — cycle through to show progress ─────────────────────────
@@ -24,17 +21,14 @@ const LOADING_MESSAGES = [
 ];
 const LOADING_STEP_DELAYS = [8000, 16000, 24000]; // ms after start to advance step
 
-type AppView = "step1" | "transitioning" | "step2" | "loading-results" | "results" | "error";
+type AppView = "step1" | "loading-results" | "results" | "error";
 
 export function AssessmentForm() {
   const [view, setView]                       = useState<AppView>("step1");
   const [recommendations, setRecommendations] = useState<FragranceRecommendation[]>([]);
-  const [welcomeName, setWelcomeName]         = useState<string | undefined>(undefined);
   const [errorInfo, setErrorInfo]             = useState<{ title: string; message: string } | null>(null);
   const [loadingStep, setLoadingStep]         = useState(0);
   const loadingTimers                         = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  const { countries, isCountriesLoading } = useCountries();
 
   const {
     selectedNotes, customNoteInput, setCustomNoteInput,
@@ -75,11 +69,6 @@ export function AssessmentForm() {
     },
   });
 
-  const step2Form = useForm<Step2Values>({
-    resolver: zodResolver(step2Schema),
-    defaultValues: { name: "", age: undefined, gender: undefined, country: "", collectionSize: undefined },
-  });
-
   const { setValue: setStep1Value, formState: { isSubmitted: isStep1Submitted } } = step1Form;
 
   // ── Sync selected notes into hidden field ──────────────────────────────────
@@ -97,19 +86,6 @@ export function AssessmentForm() {
     setStep1Value("likedFragrancesText", likedFragrances.join(", "));
   }, [likedFragrances, setStep1Value]);
 
-  // ── Load saved session and pre-fill Step 2 on mount ───────────────────────
-  useEffect(() => {
-    loadSession().then((profile) => {
-      if (!profile) return;
-      step2Form.setValue("name",           profile.name);
-      step2Form.setValue("age",            profile.age);
-      step2Form.setValue("gender",         profile.gender);
-      step2Form.setValue("country",        profile.country);
-      step2Form.setValue("collectionSize", profile.collectionSize);
-      setWelcomeName(profile.name);
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // ── Cycle loading messages while waiting for AI ────────────────────────────
   useEffect(() => {
     if (view !== "loading-results") {
@@ -123,26 +99,12 @@ export function AssessmentForm() {
     return () => loadingTimers.current.forEach(clearTimeout);
   }, [view]);
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
-  const onStep1Submit = () => {
-    setView("transitioning");
-    setTimeout(() => setView("step2"), 600);
-  };
-
-  const onStep2Submit = async (step2Data: Step2Values) => {
-    // Save profile to session (fire-and-forget — never blocks the main flow)
-    saveSession({
-      name:           step2Data.name,
-      age:            step2Data.age,
-      gender:         step2Data.gender,
-      country:        step2Data.country,
-      collectionSize: step2Data.collectionSize,
-    });
-
+  // ── Submit — no Step 2, go straight to AI ─────────────────────────────────
+  const onStep1Submit = async (step1Data: Step1Values) => {
     setView("loading-results");
 
     try {
-      const results = await submitAssessment({ ...step1Form.getValues(), ...step2Data });
+      const results = await submitAssessment(step1Data);
       setRecommendations(results);
       setView("results");
     } catch (err) {
@@ -168,43 +130,15 @@ export function AssessmentForm() {
     }
   };
 
-  // ── Restart — keep Step 2 pre-filled from saved session ───────────────────
+  // ── Restart ────────────────────────────────────────────────────────────────
   const handleRestart = () => {
     step1Form.reset();
     setRecommendations([]);
     setErrorInfo(null);
-    // Re-populate Step 2 from session so the user doesn't retype personal info
-    loadSession().then((profile) => {
-      if (profile) {
-        step2Form.setValue("name",           profile.name);
-        step2Form.setValue("age",            profile.age);
-        step2Form.setValue("gender",         profile.gender);
-        step2Form.setValue("country",        profile.country);
-        step2Form.setValue("collectionSize", profile.collectionSize);
-        setWelcomeName(profile.name);
-      } else {
-        step2Form.reset();
-        setWelcomeName(undefined);
-      }
-    });
     setView("step1");
   };
 
   // ── Render ─────────────────────────────────────────────────────────────────
-
-  if (view === "transitioning") {
-    return (
-      <div className={s.loadingPage}>
-        <div className={s.loadingContent}>
-          <div className={s.loadingIcon}><User size={64} strokeWidth={1} /></div>
-          <p className={s.loadingTitle}>Förbereder din profil…</p>
-          <div className={s.loadingDots}>
-            <span className={s.dot} /><span className={s.dot} /><span className={s.dot} />
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (view === "loading-results") {
     const { title, subtitle } = LOADING_MESSAGES[Math.min(loadingStep, LOADING_MESSAGES.length - 1)];
@@ -230,7 +164,7 @@ export function AssessmentForm() {
           <p className={s.errorTitle}>{errorInfo?.title ?? "Något gick fel"}</p>
           <p className={s.errorMessage}>{errorInfo?.message}</p>
           <div className={s.errorActions}>
-            <button onClick={() => setView("step2")} className={s.retryButton}>
+            <button onClick={() => setView("step1")} className={s.retryButton}>
               <RotateCcw size={15} />
               <span>Försök igen</span>
             </button>
@@ -249,20 +183,6 @@ export function AssessmentForm() {
       <RecommendationResults
         recommendations={recommendations}
         onRestart={handleRestart}
-      />
-    );
-  }
-
-  if (view === "step2") {
-    return (
-      <AssesmentStepTwo
-        register={step2Form.register}
-        onSubmit={step2Form.handleSubmit(onStep2Submit)}
-        onBack={() => setView("step1")}
-        countries={countries}
-        isCountriesLoading={isCountriesLoading}
-        errors={step2Form.formState.errors}
-        welcomeName={welcomeName}
       />
     );
   }

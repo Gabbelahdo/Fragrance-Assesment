@@ -37,12 +37,14 @@ class AssessmentPreferences(BaseModel):
     # link the assessment to the user's saved profile.
     session_token: str = ""
 
-    # Step 2 — user profile
-    name: str
-    age: int
-    gender: Literal["male", "female", "unspecified"]
-    country: str
-    collection_size: Literal["lt5", "5to10", "10plus"]
+    # User profile — optional since Step 2 was removed from the main flow.
+    # If the user fills in the post-recommendation feedback form these will
+    # arrive via the separate /feedback endpoint instead.
+    name: str = ""
+    age: int = 0
+    gender: Literal["male", "female", "unspecified"] = "unspecified"
+    country: str = ""
+    collection_size: Literal["lt5", "5to10", "10plus"] = "lt5"
 
 
 class AIFragranceSuggestion(BaseModel):
