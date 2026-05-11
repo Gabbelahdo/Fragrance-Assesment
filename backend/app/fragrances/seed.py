@@ -300,6 +300,7 @@ async def ensure_suggest_seed() -> None:
     """
     Populate the suggest_seed collection if it is empty.
     Safe to call on every startup — is a no-op when data already exists.
+    Version: 1
     """
     try:
         db = get_db()
