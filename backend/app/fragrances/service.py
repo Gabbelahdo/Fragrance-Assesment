@@ -1,14 +1,26 @@
 """
-Fragella API proxy service — with MongoDB cache (30-day TTL).
+Fragella API proxy service — MongoDB-first, Fragella as fallback.
 
-Lookup order:
-  1. MongoDB fragrance_cache  →  instant, free
-  2. Fragella API             →  ~200 ms, costs an API call
-  3. None                     →  Fragella had no result
+Autocomplete suggestion lookup order
+--------------------------------------
+1. suggest_seed collection  →  instant (~1 ms), no API cost.
+   Contains ~300 popular brands/fragrances pre-seeded on startup.
+2. Fragella API             →  ~300–600 ms, costs an API call.
+   Only reached when the seed returns fewer than `limit` results
+   (i.e. the query is an obscure / unknown brand or fragrance).
+
+Single fragrance lookup order
+-------------------------------
+1. fragrance_cache collection  →  instant, free.
+2. Fragella API                →  ~200–500 ms, costs an API call.
+3. None                        →  Fragella had no result.
 
 MongoDB is optional: if it is unreachable the service falls through to
 a live Fragella call and logs a warning.
 """
+from __future__ import annotations
+
+import re
 from datetime import datetime, timezone
 
 import httpx
@@ -94,19 +106,65 @@ async def _cache_set(name: str, data: dict) -> None:
         print(f"[fragrances.service] Cache write error: {exc}")
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── Seed search (MongoDB) ─────────────────────────────────────────────────────
 
-async def search_suggestions(
-    query: str,
-    suggest_type: str = "fragrance",
-    limit: int = 8,
-) -> list[dict]:
+async def _seed_search(query: str, suggest_type: str, limit: int) -> list[dict]:
     """
-    Return autocomplete suggestions from Fragella for a partial query.
+    Search the pre-seeded suggest_seed collection for autocomplete hits.
 
-    suggest_type="fragrance"  → list of {name, brand} pairs
-    suggest_type="brand"      → list of unique {name} brand names
+    Matching logic:
+      - Primary:   name starts with query   (prefix match)
+      - Secondary: name contains query      (substring match)
+      - For type=fragrance: also matches on brand name so that e.g.
+        "creed" in the fragrance field surfaces Creed Aventus etc.
+
+    Returns up to `limit` results, prefix hits ranked first.
     """
+    try:
+        q_lower = query.strip().lower()
+        regex   = re.escape(q_lower)
+
+        if suggest_type == "brand":
+            mongo_filter = {
+                "type":       "brand",
+                "name_lower": {"$regex": regex, "$options": "i"},
+            }
+            projection = {"_id": 0, "name": 1}
+        else:
+            # Match if fragrance name OR brand name contains the query
+            mongo_filter = {
+                "type": "fragrance",
+                "$or": [
+                    {"name_lower":  {"$regex": regex, "$options": "i"}},
+                    {"brand_lower": {"$regex": regex, "$options": "i"}},
+                ],
+            }
+            projection = {"_id": 0, "name": 1, "brand": 1}
+
+        cursor = get_db()["suggest_seed"].find(
+            mongo_filter,
+            projection,
+        )
+        docs: list[dict] = await cursor.to_list(length=limit * 4)
+
+        # Sort: exact prefix on name first → then alphabetical
+        docs.sort(key=lambda d: (
+            0 if d["name"].lower().startswith(q_lower) else 1,
+            d["name"].lower(),
+        ))
+        docs = docs[:limit]
+
+        if suggest_type == "brand":
+            return [{"name": d["name"]} for d in docs]
+        return [{"name": d["name"], "brand": d.get("brand", "")} for d in docs]
+
+    except Exception as exc:
+        print(f"[fragrances.service] Seed search error: {exc}")
+        return []
+
+
+async def _fragella_suggest(query: str, suggest_type: str, limit: int) -> list[dict]:
+    """Direct Fragella call for autocomplete — used only as fallback."""
     url = f"{settings.fragrance_api_url}/v1/fragrances"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
@@ -118,7 +176,7 @@ async def search_suggestions(
             resp.raise_for_status()
             data: list[dict] = resp.json()
     except Exception as exc:
-        print(f"[fragrances.service] Suggestion search failed for '{query}': {exc}")
+        print(f"[fragrances.service] Fragella suggest fallback failed for '{query}': {exc}")
         return []
 
     if suggest_type == "brand":
@@ -131,12 +189,55 @@ async def search_suggestions(
                 brands.append({"name": brand})
         return brands
 
-    # default: fragrance
     return [
-        {"name": (item.get("Name") or "").strip(), "brand": (item.get("Brand") or "").strip()}
+        {
+            "name":  (item.get("Name")  or "").strip(),
+            "brand": (item.get("Brand") or "").strip(),
+        }
         for item in data
         if item.get("Name")
     ]
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
+
+async def search_suggestions(
+    query: str,
+    suggest_type: str = "fragrance",
+    limit: int = 8,
+) -> list[dict]:
+    """
+    Return autocomplete suggestions for a partial query.
+
+    Priority:
+      1. suggest_seed (MongoDB) — instant, no API cost.
+         Contains popular brands/fragrances seeded on startup.
+         If this returns >= limit results we stop here.
+      2. Fragella API — only reached for obscure/unknown queries.
+         Results are merged with seed hits (deduped by name).
+    """
+    seed_hits = await _seed_search(query, suggest_type, limit)
+    if len(seed_hits) >= limit:
+        print(f"[fragrances.service] Suggest seed hit ({suggest_type}='{query}'): "
+              f"{len(seed_hits)} results, no Fragella call needed.")
+        return seed_hits
+
+    # Not enough seed hits → fall back to Fragella
+    print(f"[fragrances.service] Suggest seed only {len(seed_hits)} hits for "
+          f"'{query}' — calling Fragella.")
+    fragella_hits = await _fragella_suggest(query, suggest_type, limit)
+
+    # Merge: seed results first, then Fragella results not already present
+    existing = {r["name"].lower() for r in seed_hits}
+    merged   = list(seed_hits)
+    for hit in fragella_hits:
+        if hit["name"].lower() not in existing:
+            merged.append(hit)
+            existing.add(hit["name"].lower())
+        if len(merged) >= limit:
+            break
+
+    return merged[:limit]
 
 
 async def lookup_fragrance(name: str) -> dict | None:

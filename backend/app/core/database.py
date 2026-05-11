@@ -51,6 +51,17 @@ async def ensure_indexes() -> None:
             "created_at",
             name="feedback_created_at",
         )
+        # suggest_seed — compound index for fast autocomplete regex on name + type
+        await db["suggest_seed"].create_index(
+            [("type", 1), ("name_lower", 1)],
+            name="suggest_seed_type_name",
+        )
+        # suggest_seed — index on brand_lower for fragrance-by-brand search
+        await db["suggest_seed"].create_index(
+            "brand_lower",
+            name="suggest_seed_brand_lower",
+            sparse=True,
+        )
         print("[database] Indexes ensured.")
     except Exception as exc:
         print(f"[database] Could not create indexes (MongoDB unavailable?): {exc}")

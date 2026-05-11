@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import ensure_indexes
+from app.fragrances.seed import ensure_suggest_seed
 from app.users.router import router as users_router
 from app.fragrances.router import router as fragrances_router
 from app.ai.router import router as ai_router
@@ -15,6 +16,7 @@ from app.feedback.router import router as feedback_router
 async def lifespan(app: FastAPI):
     """Run startup tasks before the server starts accepting requests."""
     await ensure_indexes()
+    await ensure_suggest_seed()   # seeds suggest_seed collection if empty
     yield
 
 
