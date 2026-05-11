@@ -1,7 +1,7 @@
 """Pydantic models for the feedback endpoint."""
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
 
