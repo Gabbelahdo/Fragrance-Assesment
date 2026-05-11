@@ -8,7 +8,8 @@ _client: AsyncIOMotorClient | None = None
 def get_client() -> AsyncIOMotorClient:
     global _client
     if _client is None:
-        _client = AsyncIOMotorClient(settings.mongodb_url)
+        # retryWrites=False required for Azure Cosmos DB for MongoDB API
+        _client = AsyncIOMotorClient(settings.mongodb_url, retryWrites=False)
     return _client
 
 
