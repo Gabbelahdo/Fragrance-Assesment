@@ -217,27 +217,13 @@ async def search_suggestions(
          Results are merged with seed hits (deduped by name).
     """
     seed_hits = await _seed_search(query, suggest_type, limit)
-    if len(seed_hits) >= limit:
-        print(f"[fragrances.service] Suggest seed hit ({suggest_type}='{query}'): "
-              f"{len(seed_hits)} results, no Fragella call needed.")
+    if seed_hits:
+        # Seed has results → return immediately, no Fragella call
         return seed_hits
 
-    # Not enough seed hits → fall back to Fragella
-    print(f"[fragrances.service] Suggest seed only {len(seed_hits)} hits for "
-          f"'{query}' — calling Fragella.")
-    fragella_hits = await _fragella_suggest(query, suggest_type, limit)
-
-    # Merge: seed results first, then Fragella results not already present
-    existing = {r["name"].lower() for r in seed_hits}
-    merged   = list(seed_hits)
-    for hit in fragella_hits:
-        if hit["name"].lower() not in existing:
-            merged.append(hit)
-            existing.add(hit["name"].lower())
-        if len(merged) >= limit:
-            break
-
-    return merged[:limit]
+    # Seed returned nothing → unknown brand/fragrance, fall back to Fragella
+    print(f"[fragrances.service] Suggest seed empty for '{query}' ({suggest_type}) — calling Fragella.")
+    return await _fragella_suggest(query, suggest_type, limit)
 
 
 async def lookup_fragrance(name: str) -> dict | None:
