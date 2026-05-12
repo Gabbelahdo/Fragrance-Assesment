@@ -38,16 +38,17 @@ MAX_TOKENS   = 2048
 
 def _pick_model(prefs: AssessmentPreferences) -> str:
     """
-    Use Opus whenever strict category enforcement is required:
-      - Exactly ONE category selected (dupe-only, designer-only, or niche-only).
-        Single-category means zero tolerance for mistakes — Opus is far more
-        reliable than Haiku at following conditional categorical rules.
-      - Multiple categories with niche + 3 or more notes (complex niche request).
-    Everything else (multiple categories, no strict constraint) → Haiku.
+    Use Opus whenever strict category enforcement or a description is present:
+      - Exactly ONE category selected → Opus (zero tolerance for mistakes).
+      - Description text present → Opus (nuanced scent-direction matching).
+      - Multiple categories with niche + 3 or more notes → Opus.
+    Everything else (multiple categories, no description) → Haiku.
     """
     categories_selected = sum([prefs.prefer_niche, prefs.prefer_designer, prefs.prefer_dupe])
     if categories_selected == 1:
-        return _MODEL_OPUS  # single category = strict enforcement = Opus always
+        return _MODEL_OPUS
+    if prefs.description_text.strip():
+        return _MODEL_OPUS
     notes_count = len([n for n in prefs.notes_text.split(",") if n.strip()])
     if prefs.prefer_niche and notes_count >= 3:
         return _MODEL_OPUS
@@ -60,41 +61,88 @@ SYSTEM_PROMPT = """\
 You are an expert fragrance sommelier with comprehensive knowledge of perfumery — \
 including niche houses, designer brands, and high-quality dupes.
 
-════════════════════════════════════════════════════════
-CATEGORY RULE — READ THIS FIRST, OBEY IT ABSOLUTELY
-════════════════════════════════════════════════════════
-The user selects which fragrance categories are allowed.
-You MUST only recommend from those categories. No exceptions.
+Your task: recommend exactly 5 fragrances that best match the user's preferences.
+Apply the constraints below IN STRICT PRIORITY ORDER — higher priorities can never \
+be sacrificed to satisfy a lower one.
 
-DUPE ONLY → All 5 must be dupes/clones/inspired-by fragrances.
-  Allowed brands: Afnan, Lattafa, Armaf, Al Haramain, Rasasi,
-  Ard al Zaafaran, Fragrance World, Pendora, Zara, etc.
-  "type" field MUST be "dupe" for every single recommendation.
-  Do NOT include any niche or designer fragrances whatsoever.
+══════════════════════════════════════════════════════════════════
+PRIORITY 1 — BUDGET  ⚠ HARD CONSTRAINT — never violate
+══════════════════════════════════════════════════════════════════
+Every recommendation MUST have a real-world retail price within the user's SEK
+budget range. A fragrance that retails outside the range is EXCLUDED regardless
+of how well it matches everything else. Use current Swedish market prices.
+
+══════════════════════════════════════════════════════════════════
+PRIORITY 2 — CATEGORY (dupe / designer / niche)  ⚠ HARD CONSTRAINT
+══════════════════════════════════════════════════════════════════
+The user selects which categories are allowed. Only recommend from those.
+
+DUPE ONLY → All 5 must be budget clone/inspired-by fragrances.
+  Brands: Afnan, Lattafa, Armaf, Al Haramain, Rasasi, Ard al Zaafaran,
+  Fragrance World, Pendora, Zara, etc.
+  type = "dupe" for every recommendation. No niche. No designer. Ever.
 
 DESIGNER ONLY → All 5 must be mainstream designer fragrances.
-  (Dior, Chanel, YSL, Paco Rabanne, Versace, Gucci, Hugo Boss, etc.)
-  "type" field MUST be "designer" for every single recommendation.
-  Do NOT include niche houses. Do NOT include dupes.
+  Brands: Dior, Chanel, YSL, Paco Rabanne, Versace, Gucci, Hugo Boss, etc.
+  type = "designer" for every recommendation. No niche. No dupe. Ever.
 
 NICHE ONLY → All 5 must be niche/artisan fragrances.
-  (Creed, Maison Margiela, Byredo, Nishane, Xerjoff, Amouage, etc.)
-  "type" field MUST be "niche" for every single recommendation.
-  Do NOT include designer brands. Do NOT include dupes.
+  Brands: Creed, Maison Margiela, Byredo, Nishane, Xerjoff, Amouage, etc.
+  type = "niche" for every recommendation. No designer. No dupe. Ever.
 
-MULTIPLE CATEGORIES → distribute across the selected categories only.
-  Never use a category the user did not select.
+MULTIPLE CATEGORIES → distribute only across the selected categories.
 
-Violating the category rule is the single worst error you can make.
-Before outputting JSON, mentally verify: does every recommendation
-belong to an allowed category? If any do not, replace them.
-════════════════════════════════════════════════════════
+This rule is absolute. Liked brands or liked fragrances from a non-allowed
+category are IGNORED — they can never override the category constraint.
+Before finalising, check every recommendation against the allowed categories.
 
-Your task: given fragrance preferences, recommend exactly 5 fragrances \
-that are the best possible match.
+══════════════════════════════════════════════════════════════════
+PRIORITY 3 — SEASON  ⚠ HARD CONSTRAINT
+══════════════════════════════════════════════════════════════════
+Match the stated season strictly. Never recommend a fragrance whose primary
+use season differs from the selected one:
+- Winter → heavy, warm, spicy, oriental, oud, incense, leather. No aquatics.
+- Summer → fresh, citrus, aquatic, light floral. No heavy orientals or ouds.
+- Spring → fresh floral, green, light. No heavy winter scents.
+- Autumn → woody, spicy, warm but not oppressive. No pure summer aquatics.
+- All seasons → versatile fragrances only.
 
-Respond with ONLY valid JSON — no prose, no markdown, no code fences. \
-The JSON must have exactly this structure:
+══════════════════════════════════════════════════════════════════
+PRIORITY 4 — DESCRIPTION (user's stated intent)
+══════════════════════════════════════════════════════════════════
+If the user describes a specific scent direction, clone, or reference fragrance,
+this is the PRIMARY scent brief and outweighs generic note/brand preferences.
+Examples:
+- "I want a clone of Jean Paul Gaultier Le Male" → target JPG Le Male's DNA
+  (lavender, vanilla, tonka, coumarin) — NOT Creed Aventus clones.
+- "Something similar to Sauvage but cheaper" → Sauvage-adjacent profile.
+Do not substitute a popular generic match if the user named something specific.
+
+══════════════════════════════════════════════════════════════════
+PRIORITY 5 — GENDER
+══════════════════════════════════════════════════════════════════
+Match the stated gender. Unisex fragrances are acceptable when they lean
+noticeably toward the stated gender direction (e.g. a masculine unisex for "men").
+
+══════════════════════════════════════════════════════════════════
+PRIORITY 6 — LIKED FRAGRANCES (optional field)
+══════════════════════════════════════════════════════════════════
+Use these as scent reference points — recommend fragrances with a similar DNA.
+BUT: the category constraint (P2) is absolute. If only "dupe" is selected and
+the liked fragrance is a designer or niche, still recommend only dupes that share
+its scent profile — never cross into a non-allowed category.
+
+══════════════════════════════════════════════════════════════════
+PRIORITY 7 — LIKED BRANDS (optional field, lowest priority)
+══════════════════════════════════════════════════════════════════
+Prefer fragrances from these brands when possible, but only within allowed
+categories (P2). A liked designer brand cannot produce recommendations when
+only "dupe" is selected. Category always wins over brand loyalty.
+
+══════════════════════════════════════════════════════════════════
+
+Respond with ONLY valid JSON — no prose, no markdown, no code fences.
+Exact structure required:
 
 {
   "recommendations": [
@@ -109,16 +157,15 @@ The JSON must have exactly this structure:
   ]
 }
 
-Rules:
+Output rules:
 - Exactly 5 recommendations, ordered highest to lowest match_score.
 - match_score: integer 0–100.
-- type: exactly one of "niche", "designer", or "dupe" — no other values.
-- name: use the official name exactly as listed on Fragrantica / Basenotes.
+- type: exactly one of "niche", "designer", or "dupe".
+- name: official name as listed on Fragrantica / Basenotes.
 - brand: the perfume house or parent company.
-- price_range: the real-world retail price range in SEK, e.g. "800–1 200 SEK". Use current market prices.
-- reason: reference the notes, season, budget, and style from the preferences.
-- Only recommend fragrances that genuinely exist and are commercially available.
-- Respect the budget, gender preference, and note preferences.\
+- price_range: real-world Swedish retail price range in SEK.
+- reason: mention which priorities drove this recommendation.
+- Only recommend fragrances that genuinely exist and are commercially available.\
 """
 
 # ── Season label ──────────────────────────────────────────────────────────────
@@ -135,6 +182,12 @@ _SEASON_LABEL = {
 # ── Prompt builder ────────────────────────────────────────────────────────────
 
 def _build_user_message(prefs: AssessmentPreferences) -> str:
+    """
+    Build the user message following the exact priority hierarchy defined in the
+    system prompt: Budget → Category → Season → Description → Gender →
+    Liked Fragrances → Liked Brands.
+    Presenting data in priority order helps Claude weight them correctly.
+    """
     categories: list[str] = []
     if prefs.prefer_niche:
         categories.append("niche")
@@ -146,78 +199,79 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
     notes = [n.strip() for n in prefs.notes_text.split(",") if n.strip()]
     notes_str = ", ".join(notes) if notes else "no specific preference"
 
-    lines: list[str] = []
+    lines: list[str] = ["User preferences (apply in the priority order from your instructions):"]
 
-    # ── PRIMARY DIRECTIVES (highest priority — must be obeyed first) ──────────
-    # Liked brands and fragrances are the user's strongest signal.
-    # Description captures specific intent that overrides generic matching.
-    has_primary = (
-        prefs.liked_brands_text.strip()
-        or prefs.liked_fragrances_text.strip()
-        or prefs.description_text.strip()
-    )
-
-    if has_primary:
-        lines += ["PRIMARY DIRECTIVES (these override generic note/season matching):", ""]
-
-        if prefs.liked_brands_text.strip():
-            brands = prefs.liked_brands_text.strip()
-            lines += [
-                f"  PREFERRED BRANDS: {brands}",
-                f"  → Strongly prioritise fragrances FROM these brands. At least 2–3 of",
-                f"    the 5 recommendations should be from {brands} unless truly impossible.",
-                f"    Do not ignore this — if the user listed a brand, they want to see it.",
-                "",
-            ]
-
-        if prefs.liked_fragrances_text.strip():
-            frags = prefs.liked_fragrances_text.strip()
-            lines += [
-                f"  LIKED FRAGRANCES: {frags}",
-                f"  → Recommend fragrances with a similar scent profile, DNA, and style",
-                f"    to these. They are the user's taste reference point.",
-                "",
-            ]
-
-        if prefs.description_text.strip():
-            desc = prefs.description_text.strip()
-            lines += [
-                f"  WHAT THEY'RE LOOKING FOR: {desc}",
-                f"  → Treat this as the primary brief. If they name a specific fragrance",
-                f"    or brand (e.g. 'dupe of Jean Paul Gaultier'), every recommendation",
-                f"    must target that exact scent direction — not a generic popular dupe.",
-                "",
-            ]
-
-    # ── SECONDARY PREFERENCES (used to fine-tune within primary constraints) ──
+    # ── P1: BUDGET ────────────────────────────────────────────────────────────
     lines += [
-        "Secondary preferences (use to refine within the primary directives above):",
         "",
-        f"  Budget: {prefs.budget_min}–{prefs.budget_max} SEK",
-        f"  Season: {_SEASON_LABEL.get(prefs.season, prefs.season)}",
-        f"  Gender: {prefs.fragrance_gender}",
-        f"  Preferred notes: {notes_str}",
-        f"  Allowed categories: {', '.join(categories)}",
+        f"[P1 BUDGET — hard constraint] {prefs.budget_min}–{prefs.budget_max} SEK",
+        "  All 5 recommendations must retail within this range. Exclude anything outside it.",
     ]
 
-    # ── CATEGORY ENFORCEMENT REMINDER ─────────────────────────────────────────
+    # ── P2: CATEGORY ─────────────────────────────────────────────────────────
+    cat_str = ", ".join(categories) if categories else "none selected"
+    lines += [
+        "",
+        f"[P2 CATEGORY — hard constraint] Allowed: {cat_str}",
+    ]
     if prefs.prefer_dupe and not prefs.prefer_niche and not prefs.prefer_designer:
-        lines += [
-            "",
-            "CATEGORY ENFORCEMENT: ONLY dupes allowed — all 5 must be budget/inspired-by",
-            "fragrances (type=dupe). No niche, no designer.",
-        ]
+        lines.append("  ONLY dupes — all 5 must be type=dupe. Zero niche or designer.")
     elif prefs.prefer_niche and not prefs.prefer_designer and not prefs.prefer_dupe:
-        lines += [
-            "",
-            "CATEGORY ENFORCEMENT: ONLY niche allowed — all 5 must be niche/artisan",
-            "fragrances (type=niche). No designer, no dupe.",
-        ]
+        lines.append("  ONLY niche — all 5 must be type=niche. Zero designer or dupe.")
     elif prefs.prefer_designer and not prefs.prefer_niche and not prefs.prefer_dupe:
+        lines.append("  ONLY designer — all 5 must be type=designer. Zero niche or dupe.")
+    else:
+        lines.append(f"  Mix across allowed categories only: {cat_str}.")
+
+    # ── P3: SEASON ────────────────────────────────────────────────────────────
+    lines += [
+        "",
+        f"[P3 SEASON — hard constraint] {_SEASON_LABEL.get(prefs.season, prefs.season)}",
+        "  Only recommend fragrances whose primary use season matches this.",
+    ]
+
+    # ── P4: DESCRIPTION ───────────────────────────────────────────────────────
+    if prefs.description_text.strip():
         lines += [
             "",
-            "CATEGORY ENFORCEMENT: ONLY designer allowed — all 5 must be mainstream",
-            "designer fragrances (type=designer). No niche, no dupe.",
+            f"[P4 DESCRIPTION — primary scent brief] {prefs.description_text.strip()}",
+            "  This overrides generic note matching. If a specific fragrance or brand is",
+            "  named, target that exact scent DNA. Do not substitute a generic popular match.",
+        ]
+
+    # ── P5: GENDER ────────────────────────────────────────────────────────────
+    lines += [
+        "",
+        f"[P5 GENDER] {prefs.fragrance_gender}",
+        "  Unisex fragrances are acceptable if they lean toward this direction.",
+    ]
+
+    # ── Notes (supporting detail, not a ranked priority) ──────────────────────
+    if notes:
+        lines += [
+            "",
+            f"[NOTES — supporting detail] {notes_str}",
+            "  Use these to fine-tune within the constraints above.",
+        ]
+
+    # ── P6: LIKED FRAGRANCES ──────────────────────────────────────────────────
+    if prefs.liked_fragrances_text.strip():
+        lines += [
+            "",
+            f"[P6 LIKED FRAGRANCES] {prefs.liked_fragrances_text.strip()}",
+            "  Use as scent reference — recommend similar DNA/profile.",
+            "  Category (P2) is absolute: never cross into a non-allowed category",
+            "  even if the liked fragrance belongs there.",
+        ]
+
+    # ── P7: LIKED BRANDS ──────────────────────────────────────────────────────
+    if prefs.liked_brands_text.strip():
+        lines += [
+            "",
+            f"[P7 LIKED BRANDS — lowest priority] {prefs.liked_brands_text.strip()}",
+            "  Prefer fragrances from these brands, but only within allowed categories (P2).",
+            "  A liked designer brand cannot appear when only dupe is selected, etc.",
+            "  Aim for at least 2–3 recommendations from these brands when possible.",
         ]
 
     lines += ["", "Recommend exactly 5 fragrances."]
@@ -244,9 +298,10 @@ def _extract_json(text: str) -> dict:
 # History:
 #   v1 — initial
 #   v2 — stronger category enforcement prompt + Opus for single-category requests
-#   v3 — description_text added to hash; prompt rewrite to treat liked_brands,
-#         liked_fragrances, and description as primary directives
-_CACHE_VERSION = 3
+#   v3 — description_text added to hash; liked_brands/fragrances as primary directives
+#   v4 — full 7-level priority hierarchy in system prompt + user message;
+#         Opus also triggered when description_text is present
+_CACHE_VERSION = 4
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
