@@ -28,8 +28,8 @@ from app.fragrances import service as fragrance_service
 from app.users import service as user_service
 
 # ── Model selection ───────────────────────────────────────────────────────────
-# claude-opus-4-7  → $5 / $25 per M tokens  — complex niche requests
-# claude-haiku-4-5 → $1 / $5  per M tokens  — straightforward requests (~25× cheaper)
+# claude-opus-4-7  → $5 / $25 per M tokens  — strict category enforcement
+# claude-haiku-4-5 → $1 / $5  per M tokens  — multi-category, relaxed requests
 
 _MODEL_OPUS  = "claude-opus-4-7"
 _MODEL_HAIKU = "claude-haiku-4-5"
@@ -38,11 +38,16 @@ MAX_TOKENS   = 2048
 
 def _pick_model(prefs: AssessmentPreferences) -> str:
     """
-    Use Opus only when the request is complex enough to justify the cost:
-      - niche category selected, AND
-      - 3 or more specific notes provided.
-    Everything else → Haiku.
+    Use Opus whenever strict category enforcement is required:
+      - Exactly ONE category selected (dupe-only, designer-only, or niche-only).
+        Single-category means zero tolerance for mistakes — Opus is far more
+        reliable than Haiku at following conditional categorical rules.
+      - Multiple categories with niche + 3 or more notes (complex niche request).
+    Everything else (multiple categories, no strict constraint) → Haiku.
     """
+    categories_selected = sum([prefs.prefer_niche, prefs.prefer_designer, prefs.prefer_dupe])
+    if categories_selected == 1:
+        return _MODEL_OPUS  # single category = strict enforcement = Opus always
     notes_count = len([n for n in prefs.notes_text.split(",") if n.strip()])
     if prefs.prefer_niche and notes_count >= 3:
         return _MODEL_OPUS
@@ -54,6 +59,36 @@ def _pick_model(prefs: AssessmentPreferences) -> str:
 SYSTEM_PROMPT = """\
 You are an expert fragrance sommelier with comprehensive knowledge of perfumery — \
 including niche houses, designer brands, and high-quality dupes.
+
+════════════════════════════════════════════════════════
+CATEGORY RULE — READ THIS FIRST, OBEY IT ABSOLUTELY
+════════════════════════════════════════════════════════
+The user selects which fragrance categories are allowed.
+You MUST only recommend from those categories. No exceptions.
+
+DUPE ONLY → All 5 must be dupes/clones/inspired-by fragrances.
+  Allowed brands: Afnan, Lattafa, Armaf, Al Haramain, Rasasi,
+  Ard al Zaafaran, Fragrance World, Pendora, Zara, etc.
+  "type" field MUST be "dupe" for every single recommendation.
+  Do NOT include any niche or designer fragrances whatsoever.
+
+DESIGNER ONLY → All 5 must be mainstream designer fragrances.
+  (Dior, Chanel, YSL, Paco Rabanne, Versace, Gucci, Hugo Boss, etc.)
+  "type" field MUST be "designer" for every single recommendation.
+  Do NOT include niche houses. Do NOT include dupes.
+
+NICHE ONLY → All 5 must be niche/artisan fragrances.
+  (Creed, Maison Margiela, Byredo, Nishane, Xerjoff, Amouage, etc.)
+  "type" field MUST be "niche" for every single recommendation.
+  Do NOT include designer brands. Do NOT include dupes.
+
+MULTIPLE CATEGORIES → distribute across the selected categories only.
+  Never use a category the user did not select.
+
+Violating the category rule is the single worst error you can make.
+Before outputting JSON, mentally verify: does every recommendation
+belong to an allowed category? If any do not, replace them.
+════════════════════════════════════════════════════════
 
 Your task: given fragrance preferences, recommend exactly 5 fragrances \
 that are the best possible match.
@@ -83,19 +118,7 @@ Rules:
 - price_range: the real-world retail price range in SEK, e.g. "800–1 200 SEK". Use current market prices.
 - reason: reference the notes, season, budget, and style from the preferences.
 - Only recommend fragrances that genuinely exist and are commercially available.
-- Respect the budget, category whitelist, gender preference, and note preferences.
-
-CATEGORY ENFORCEMENT (critical — never violate this):
-- The user specifies which categories are allowed. Only recommend from those categories.
-- If ONLY "dupe" is selected: every single one of the 5 recommendations MUST be a dupe
-  (budget clone/inspired-by fragrance from brands like Afnan, Lattafa, Armaf, Al Haramain,
-  Rasasi, Ard al Zaafaran, Fragrance World, Zara, etc.). Do NOT include any niche or
-  designer fragrances. type must be "dupe" for all 5.
-- If ONLY "niche" is selected: all 5 must be niche/artisan fragrances. No designers. No dupes.
-- If ONLY "designer" is selected: all 5 must be mainstream designer fragrances. No niche. No dupes.
-- If multiple categories are selected: distribute across the selected categories only.
-- Violating the category restriction is the worst possible error — it directly contradicts
-  the user's explicit preference.\
+- Respect the budget, gender preference, and note preferences.\
 """
 
 # ── Season label ──────────────────────────────────────────────────────────────
@@ -171,9 +194,17 @@ def _extract_json(text: str) -> dict:
 
 # ── Recommendation cache ──────────────────────────────────────────────────────
 
+# Increment this to invalidate ALL previously cached recommendations.
+# History:
+#   v1 — initial
+#   v2 — stronger category enforcement prompt + Opus for single-category requests
+_CACHE_VERSION = 2
+
+
 def _preference_hash(prefs: AssessmentPreferences) -> str:
     """Stable SHA-256 fingerprint of the fragrance preferences (not personal data)."""
     key = {
+        "_v":                    _CACHE_VERSION,
         "budget_min":            prefs.budget_min,
         "budget_max":            prefs.budget_max,
         "season":                prefs.season,

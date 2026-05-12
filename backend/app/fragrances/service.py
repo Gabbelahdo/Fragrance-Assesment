@@ -15,6 +15,14 @@ Single fragrance lookup order
 2. Fragella API                →  ~200–500 ms, costs an API call.
 3. None                        →  Fragella had no result.
 
+Image mirroring
+----------------
+When a Fragella image URL is first fetched, it is downloaded and uploaded
+to Azure Blob Storage (if AZURE_STORAGE_CONNECTION_STRING is configured).
+Subsequent cache hits return the permanent blob URL instead of the
+Fragella CDN URL, making images resilient to Fragella CDN changes.
+If blob config is absent, the original Fragella URL is stored as-is.
+
 MongoDB is optional: if it is unreachable the service falls through to
 a live Fragella call and logs a warning.
 """
@@ -27,6 +35,58 @@ import httpx
 
 from app.core.config import settings
 from app.core.database import get_db
+
+# ── Image mirroring (Azure Blob) ──────────────────────────────────────────────
+
+_VALID_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
+
+
+async def _mirror_image(fragrance_key: str, source_url: str) -> str:
+    """
+    Download image from Fragella CDN and upload to Azure Blob Storage.
+    Returns the permanent blob URL on success, or the original URL on failure.
+    If blob storage is not configured, returns source_url immediately.
+    """
+    if not settings.blob_connection_string:
+        return source_url
+
+    try:
+        from azure.storage.blob import ContentSettings
+        from azure.storage.blob.aio import BlobServiceClient
+
+        # Download the image from Fragella
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(source_url)
+            resp.raise_for_status()
+
+        content_type = resp.headers.get("content-type", "image/jpeg")
+
+        # Derive extension from URL (strip query params first)
+        clean_path = source_url.split("?")[0]
+        ext = clean_path.rsplit(".", 1)[-1].lower() if "." in clean_path else "jpg"
+        if ext not in _VALID_EXTENSIONS:
+            ext = "jpg"
+
+        blob_name = f"{fragrance_key}.{ext}"
+
+        async with BlobServiceClient.from_connection_string(
+            settings.blob_connection_string
+        ) as svc:
+            container = svc.get_container_client(settings.blob_container)
+            blob = container.get_blob_client(blob_name)
+            await blob.upload_blob(
+                resp.content,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type),
+            )
+            permanent_url = blob.url
+
+        print(f"[fragrances.service] Image mirrored → {permanent_url}")
+        return permanent_url
+
+    except Exception as exc:
+        print(f"[fragrances.service] Image mirror failed for '{fragrance_key}': {exc}")
+        return source_url  # fall back to original Fragella URL
 
 
 # ── Normalisation helpers ─────────────────────────────────────────────────────
@@ -93,12 +153,20 @@ async def _cache_get(name: str) -> dict | None:
 
 async def _cache_set(name: str, data: dict) -> None:
     try:
+        # Mirror image to Azure Blob before persisting — this ensures the stored
+        # URL is always a permanent blob URL rather than a Fragella CDN URL.
+        if data.get("image_url"):
+            data = {
+                **data,
+                "image_url": await _mirror_image(name.lower(), data["image_url"]),
+            }
+
         await get_db()["fragrance_cache"].replace_one(
             {"_id": name.lower()},
             {
                 "_id":       name.lower(),
                 "data":      data,
-                "cached_at": datetime.now(timezone.utc),   # TTL index key
+                "cached_at": datetime.now(timezone.utc),
             },
             upsert=True,
         )

@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # Set ADMIN_KEY in Azure env vars. Leave empty to disable admin endpoints.
     admin_key: str = Field(default="", alias="ADMIN_KEY")
 
+    # Azure Blob Storage — for mirroring Fragella images to our own CDN.
+    # Set AZURE_STORAGE_CONNECTION_STRING in Azure env vars.
+    # Leave empty to skip mirroring (Fragella CDN URLs used as-is).
+    blob_connection_string: str = Field(default="", alias="AZURE_STORAGE_CONNECTION_STRING")
+    blob_container: str = Field(default="fragrance-images", alias="AZURE_BLOB_CONTAINER")
+
     # CORS — stored as a comma-separated string so Azure App Settings is simple.
     # Example: CORS_ORIGINS=http://localhost:5173,https://yourapp.azurestaticapps.net
     # We keep it as str here and expose cors_origins as a property to avoid
