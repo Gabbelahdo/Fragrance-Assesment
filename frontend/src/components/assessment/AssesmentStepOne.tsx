@@ -92,17 +92,6 @@ export function AssesmentStepOne({
           </p>
         </div>
 
-        <div className={s.stepIndicator}>
-          <div className={s.stepWithLabel}>
-            <div className={s.stepActive}>1</div>
-            <span className={s.stepLabel}>Preferenser</span>
-          </div>
-          <div className={s.stepLine} />
-          <div className={s.stepWithLabel}>
-            <div className={s.stepInactive}>2</div>
-            <span className={s.stepLabel}>Din profil</span>
-          </div>
-        </div>
 
         <form onSubmit={onSubmit} className={s.form}>
           <div className={s.card}>
