@@ -33,7 +33,9 @@ from app.users import service as user_service
 
 _MODEL_OPUS  = "claude-opus-4-7"
 _MODEL_HAIKU = "claude-haiku-4-5"
-MAX_TOKENS   = 2048
+# Opus 4.7 with adaptive thinking uses tokens for reasoning before the JSON output.
+# 4096 gives ample room for both internal reasoning and the ~600-token JSON response.
+MAX_TOKENS   = 4096
 
 
 def _pick_model(prefs: AssessmentPreferences) -> str:
@@ -332,6 +334,39 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
     return "\n".join(lines)
 
 
+# ── Non-fragrance brand blocklist ────────────────────────────────────────────
+# Claude occasionally hallucinates cosmetics/makeup/skincare companies as
+# fragrance brands despite explicit prompt rules.  This list is a last-resort
+# post-processing guard: any suggestion whose brand matches here is dropped.
+# Add new offenders discovered in testing.
+_NON_FRAGRANCE_BRANDS: frozenset[str] = frozenset({
+    "pure cosmetics",
+    "mac",
+    "mac cosmetics",
+    "nyx",
+    "nyx professional makeup",
+    "maybelline",
+    "l'oreal",
+    "loreal",
+    "revlon",
+    "e.l.f.",
+    "elf cosmetics",
+    "urban decay",
+    "too faced",
+    "benefit cosmetics",
+    "clinique",   # primarily skincare/cosmetics, rarely fragrance
+    "cetaphil",
+    "nivea",
+    "dove",
+    "neutrogena",
+})
+
+
+def _is_blocked_brand(brand: str) -> bool:
+    """Return True if brand is in the non-fragrance blocklist."""
+    return brand.strip().lower() in _NON_FRAGRANCE_BRANDS
+
+
 # ── JSON extraction ───────────────────────────────────────────────────────────
 
 def _extract_json(text: str) -> dict:
@@ -360,7 +395,8 @@ def _extract_json(text: str) -> dict:
 #   v7 — dupe-only + liked fragrances promoted to P4 clone brief
 #   v8 — scent-target brief generalised to all 3 single-category + liked frags combos
 #   v9 — brand tier reference added (Tom Ford/Mancera never dupe); stronger hallucination guard
-_CACHE_VERSION = 9
+#   v10 — post-Claude non-fragrance brand blocklist (Pure Cosmetics repeat offender)
+_CACHE_VERSION = 10
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
@@ -452,9 +488,28 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
     # Enrich with Fragella (fragrance_service has its own cache)
     results: list[RecommendationResult] = []
     for i, suggestion in enumerate(suggestions):
+        # Hard blocklist — reject known non-fragrance brands before any enrichment
+        if _is_blocked_brand(suggestion.brand):
+            print(f"[ai.service] Blocked non-fragrance brand: '{suggestion.brand}' — skipping.")
+            continue
+
         fragella = await fragrance_service.lookup_fragrance(suggestion.name)
 
+        fragella_is_valid = False
         if fragella:
+            fragella_brand = fragella["fragella_brand"] or suggestion.brand
+            # Secondary blocklist check — Fragella can return wrong brands for some
+            # queries (e.g. a cosmetics brand name as a false-positive search result).
+            # Discard the entire Fragella record when the brand is blocked.
+            if _is_blocked_brand(fragella_brand):
+                print(
+                    f"[ai.service] Fragella returned blocked brand '{fragella_brand}' "
+                    f"for '{suggestion.name}' — discarding Fragella result, using AI data."
+                )
+            else:
+                fragella_is_valid = True
+
+        if fragella_is_valid:
             name        = fragella["fragella_name"] or suggestion.name
             brand       = fragella["fragella_brand"] or suggestion.brand
             image_url   = fragella["image_url"]
@@ -464,7 +519,8 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
             # without currency label, making them misleading when displayed as kr.
             price_range = suggestion.price_range
         else:
-            print(f"[ai.service] Fragella miss for '{suggestion.name}' — using AI data.")
+            if not fragella:
+                print(f"[ai.service] Fragella miss for '{suggestion.name}' — using AI data.")
             name        = suggestion.name
             brand       = suggestion.brand
             image_url   = None
