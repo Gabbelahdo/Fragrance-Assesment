@@ -165,7 +165,9 @@ Output rules:
 - brand: the perfume house or parent company.
 - price_range: real-world Swedish retail price range in SEK.
 - reason: 1-2 sentences of natural prose explaining why this fragrance matches. Write for an end user — never mention P1/P2/P3 or any internal priority labels. Reference the scent profile, season, style, and budget naturally.
-- Only recommend fragrances that genuinely exist and are commercially available.\
+- Only recommend fragrances that genuinely exist and are verifiable on Fragrantica or Basenotes.
+- CRITICAL — do NOT hallucinate: if you are not certain a fragrance exists under that exact name and brand, do not include it. It is better to repeat a well-known fragrance than to invent one.
+- PERFUME BRANDS ONLY: every brand must be a perfume/fragrance house. Never recommend products from cosmetics brands, skincare brands, makeup brands, or any company not primarily known for fragrances. If a brand name could belong to a non-fragrance company, skip it.\
 """
 
 # ── Season label ──────────────────────────────────────────────────────────────
@@ -302,7 +304,8 @@ def _extract_json(text: str) -> dict:
 #   v4 — full 7-level priority hierarchy in system prompt + user message;
 #         Opus also triggered when description_text is present
 #   v5 — fix reason field leaking P1/P2/P3 labels to end users
-_CACHE_VERSION = 5
+#   v6 — anti-hallucination: perfume brands only, Fragrantica-verifiable names
+_CACHE_VERSION = 6
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
