@@ -77,24 +77,36 @@ PRIORITY 2 — CATEGORY (dupe / designer / niche)  ⚠ HARD CONSTRAINT
 ══════════════════════════════════════════════════════════════════
 The user selects which categories are allowed. Only recommend from those.
 
-DUPE ONLY → All 5 must be budget clone/inspired-by fragrances.
-  Brands: Afnan, Lattafa, Armaf, Al Haramain, Rasasi, Ard al Zaafaran,
-  Fragrance World, Pendora, Zara, etc.
-  type = "dupe" for every recommendation. No niche. No designer. Ever.
+BRAND TIER REFERENCE — memorise this before outputting anything:
+  DUPE brands (budget/inspired-by only):
+    Afnan, Lattafa, Armaf, Al Haramain, Rasasi, Ard al Zaafaran,
+    Fragrance World, Pendora, Zara, Lidl, Kemi Oud, Paris Corner,
+    Riiffs, Maison Alhambra, Fragrance Du Bois (budget line), etc.
+    These retail under ~500 SEK for 100 ml.
 
-DESIGNER ONLY → All 5 must be mainstream designer fragrances.
-  Brands: Dior, Chanel, YSL, Paco Rabanne, Versace, Gucci, Hugo Boss, etc.
-  type = "designer" for every recommendation. No niche. No dupe. Ever.
+  DESIGNER brands (mainstream/luxury fashion houses):
+    Dior, Chanel, YSL, Paco Rabanne, Versace, Gucci, Hugo Boss,
+    Calvin Klein, Dolce & Gabbana, Givenchy, Burberry, Valentino,
+    Giorgio Armani, Hermès, Lacoste, Ralph Lauren, etc.
 
-NICHE ONLY → All 5 must be niche/artisan fragrances.
-  Brands: Creed, Maison Margiela, Byredo, Nishane, Xerjoff, Amouage, etc.
-  type = "niche" for every recommendation. No designer. No dupe. Ever.
+  NICHE brands (artisan/independent perfume houses):
+    Creed, Tom Ford, Maison Margiela, Byredo, Nishane, Xerjoff,
+    Amouage, Initio, Mancera, Montale, Kilian, Orto Parisi,
+    Tauer, Zoologist, Serge Lutens, Diptyque, L'Artisan, etc.
 
+  ⚠ NEVER label a niche or designer brand as type="dupe".
+    Tom Ford, Mancera, Creed, Dior, Chanel etc. are NEVER dupes.
+    A dupe must come from a budget brand. No exceptions.
+
+DUPE ONLY → All 5 from the DUPE brand list above. type="dupe" for all.
+DESIGNER ONLY → All 5 from the DESIGNER brand list above. type="designer" for all.
+NICHE ONLY → All 5 from the NICHE brand list above. type="niche" for all.
 MULTIPLE CATEGORIES → distribute only across the selected categories.
 
 This rule is absolute. Liked brands or liked fragrances from a non-allowed
 category are IGNORED — they can never override the category constraint.
-Before finalising, check every recommendation against the allowed categories.
+Before finalising, check EVERY recommendation: does the brand belong to
+an allowed tier? If not, replace it.
 
 ══════════════════════════════════════════════════════════════════
 PRIORITY 3 — SEASON  ⚠ HARD CONSTRAINT
@@ -165,9 +177,10 @@ Output rules:
 - brand: the perfume house or parent company.
 - price_range: real-world Swedish retail price range in SEK.
 - reason: 1-2 sentences of natural prose explaining why this fragrance matches. Write for an end user — never mention P1/P2/P3 or any internal priority labels. Reference the scent profile, season, style, and budget naturally.
-- Only recommend fragrances that genuinely exist and are verifiable on Fragrantica or Basenotes.
-- CRITICAL — do NOT hallucinate: if you are not certain a fragrance exists under that exact name and brand, do not include it. It is better to repeat a well-known fragrance than to invent one.
-- PERFUME BRANDS ONLY: every brand must be a perfume/fragrance house. Never recommend products from cosmetics brands, skincare brands, makeup brands, or any company not primarily known for fragrances. If a brand name could belong to a non-fragrance company, skip it.\
+- Only recommend fragrances verifiable on Fragrantica or Basenotes with that exact name and brand.
+- ANTI-HALLUCINATION: if you are not 100% certain a fragrance exists under that exact name and brand, do not include it. Use a well-known safe alternative instead.
+- PERFUME BRANDS ONLY: every brand must be a dedicated perfume/fragrance house. Never include cosmetics brands (e.g. Pure Cosmetics, MAC, NYX), skincare brands, makeup brands, or any company whose primary business is not fragrance. If in doubt, skip it.
+- SELF-CHECK before outputting: read back each of the 5 brands — is it a real fragrance house? Is the fragrance name real? Is the type correct for its tier? Fix any that fail.\
 """
 
 # ── Season label ──────────────────────────────────────────────────────────────
@@ -346,7 +359,8 @@ def _extract_json(text: str) -> dict:
 #   v6 — anti-hallucination: perfume brands only, Fragrantica-verifiable names
 #   v7 — dupe-only + liked fragrances promoted to P4 clone brief
 #   v8 — scent-target brief generalised to all 3 single-category + liked frags combos
-_CACHE_VERSION = 8
+#   v9 — brand tier reference added (Tom Ford/Mancera never dupe); stronger hallucination guard
+_CACHE_VERSION = 9
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
