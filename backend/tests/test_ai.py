@@ -135,19 +135,54 @@ async def test_recommend_result_cached_on_second_call(client: AsyncClient, mock_
     assert r1.json() == r2.json()
 
 
-async def test_recommend_model_tiering_uses_haiku_for_simple(mock_claude, mock_fragella):
-    """Designer + 2 notes → Haiku; niche + 3+ notes → Opus."""
+async def test_recommend_model_tiering(mock_claude, mock_fragella):
+    """Model selection follows priority rules:
+    - Single category selected → Opus (strict enforcement needed)
+    - Description present → Opus (nuanced scent-direction matching)
+    - Multiple categories, no description, few notes → Haiku
+    - Multiple categories with niche + 3+ notes → Opus
+    """
     from app.ai.service import _pick_model
     from app.ai.models import AssessmentPreferences
 
-    simple = AssessmentPreferences(
+    # Multi-category, no description, few notes → Haiku
+    multi_simple = AssessmentPreferences(
+        budget_min=500, budget_max=2000, season="summer",
+        fragrance_gender="men", notes_text="citrus, fresh",
+        prefer_niche=True, prefer_designer=True, prefer_dupe=False,
+        name="X", age=25, gender="male", country="Sweden", collection_size="lt5",
+    )
+    assert _pick_model(multi_simple) == "claude-haiku-4-5"
+
+    # Single category (designer only) → Opus
+    single_designer = AssessmentPreferences(
         budget_min=500, budget_max=2000, season="summer",
         fragrance_gender="men", notes_text="citrus, fresh",
         prefer_niche=False, prefer_designer=True, prefer_dupe=False,
         name="X", age=25, gender="male", country="Sweden", collection_size="lt5",
     )
-    assert _pick_model(simple) == "claude-haiku-4-5"
+    assert _pick_model(single_designer) == "claude-opus-4-7"
 
+    # Single category (dupe only) → Opus
+    single_dupe = AssessmentPreferences(
+        budget_min=200, budget_max=500, season="summer",
+        fragrance_gender="men", notes_text="citrus",
+        prefer_niche=False, prefer_designer=False, prefer_dupe=True,
+        name="X", age=25, gender="male", country="Sweden", collection_size="lt5",
+    )
+    assert _pick_model(single_dupe) == "claude-opus-4-7"
+
+    # Description present → Opus (even with multiple categories)
+    with_description = AssessmentPreferences(
+        budget_min=500, budget_max=2000, season="summer",
+        fragrance_gender="men", notes_text="citrus, fresh",
+        prefer_niche=True, prefer_designer=True, prefer_dupe=False,
+        description_text="I want a clone of Jean Paul Gaultier Le Male",
+        name="X", age=25, gender="male", country="Sweden", collection_size="lt5",
+    )
+    assert _pick_model(with_description) == "claude-opus-4-7"
+
+    # Multi-category niche + 3+ notes → Opus
     complex_ = AssessmentPreferences(
         budget_min=500, budget_max=5000, season="winter",
         fragrance_gender="unisex", notes_text="oud, amber, smoke, leather",
