@@ -232,21 +232,43 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
         "  Only recommend fragrances whose primary use season matches this.",
     ]
 
-    # ── P4: DESCRIPTION / IMPLICIT CLONE BRIEF ───────────────────────────────
-    # When dupe-only is selected AND liked fragrances are listed, the intent is
-    # unambiguous: find budget clones of those exact fragrances. Promote to P4
-    # so it overrides generic note matching.
-    dupe_only = prefs.prefer_dupe and not prefs.prefer_niche and not prefs.prefer_designer
+    # ── P4: DESCRIPTION / SCENT-TARGET BRIEF ─────────────────────────────────
+    # When exactly ONE category is selected AND liked fragrances are listed,
+    # the intent is always: "find [category] fragrances that smell like these."
+    # The liked fragrances define the scent target; the category defines the tier.
+    # Examples:
+    #   dupe + Dylan Blue, Bleu de Chanel  → budget clones of those two
+    #   niche + Sauvage, Dylan Blue        → niche fragrances with that DNA
+    #   designer + Creed Aventus           → designer fragrances with that profile
+    # Promote to P4 so it overrides generic note matching.
+    categories_selected = sum([prefs.prefer_niche, prefs.prefer_designer, prefs.prefer_dupe])
+    single_category = categories_selected == 1
+    dupe_only     = prefs.prefer_dupe     and not prefs.prefer_niche and not prefs.prefer_designer
+    niche_only    = prefs.prefer_niche    and not prefs.prefer_designer and not prefs.prefer_dupe
+    designer_only = prefs.prefer_designer and not prefs.prefer_niche and not prefs.prefer_dupe
     liked_frags = prefs.liked_fragrances_text.strip()
 
-    if dupe_only and liked_frags:
+    if single_category and liked_frags:
+        if dupe_only:
+            target_desc = "budget-friendly dupes/clones/inspired-by versions"
+            category_label = "dupe"
+        elif niche_only:
+            target_desc = "niche/artisan fragrances"
+            category_label = "niche"
+        else:  # designer_only
+            target_desc = "mainstream designer fragrances"
+            category_label = "designer"
+
         lines += [
             "",
-            "[P4 CLONE BRIEF — primary scent directive]",
-            f"  The user wants budget dupes/clones of these specific fragrances: {liked_frags}",
-            "  Every recommendation must be an inspired-by or clone of one of these — not",
-            "  a generic popular dupe. Target the exact scent DNA of each named fragrance.",
-            "  (This already covers P6 — do not add P6 separately below.)",
+            "[P4 SCENT-TARGET BRIEF — primary directive]",
+            f"  The user likes the scent profile of: {liked_frags}",
+            f"  Find {target_desc} (type={category_label}) that share the same scent DNA.",
+            f"  The liked fragrances are the SCENT REFERENCE — the category ({category_label}) is",
+            f"  the TIER to search in. Do not recommend the liked fragrances themselves.",
+            f"  Do not pick generic popular {category_label} fragrances — match the specific",
+            f"  scent character of {liked_frags}.",
+            "  (This already covers P6 — do not repeat liked fragrances below.)",
         ]
     elif prefs.description_text.strip():
         lines += [
@@ -272,8 +294,9 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
         ]
 
     # ── P6: LIKED FRAGRANCES ──────────────────────────────────────────────────
-    # Skip if already promoted to P4 clone brief above (dupe-only + liked frags).
-    if liked_frags and not (dupe_only and liked_frags):
+    # Skip when already promoted to P4 scent-target brief above
+    # (any single category + liked fragrances — handled there).
+    if liked_frags and not (single_category and liked_frags):
         lines += [
             "",
             f"[P6 LIKED FRAGRANCES] {liked_frags}",
@@ -322,7 +345,8 @@ def _extract_json(text: str) -> dict:
 #   v5 — fix reason field leaking P1/P2/P3 labels to end users
 #   v6 — anti-hallucination: perfume brands only, Fragrantica-verifiable names
 #   v7 — dupe-only + liked fragrances promoted to P4 clone brief
-_CACHE_VERSION = 7
+#   v8 — scent-target brief generalised to all 3 single-category + liked frags combos
+_CACHE_VERSION = 8
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
