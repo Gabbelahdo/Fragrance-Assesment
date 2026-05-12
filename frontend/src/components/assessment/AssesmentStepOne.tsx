@@ -88,7 +88,7 @@ export function AssesmentStepOne({
           </div>
           <h1 className={s.headerTitle}>Doftanalys</h1>
           <p className={s.headerSubtitle}>
-            Berätta vad du letar efter — vi hittar din perfekta doft!
+            Berätta vad du letar efter, vi hittar din perfekta doft!
           </p>
         </div>
 
@@ -187,7 +187,7 @@ export function AssesmentStepOne({
                 <span className={s.optionalBadge}>valfritt</span>
               </label>
               <p className={s.helperText}>
-                Sök efter doftmärken — välj från listan eller tryck Enter för att lägga till.
+                Sök efter doftmärken, välj från listan eller tryck Enter för att lägga till.
               </p>
               <DropdownChipInput
                 placeholder="T.ex. Creed, Maison Margiela, Dior…"
@@ -215,7 +215,7 @@ export function AssesmentStepOne({
                 <span className={s.optionalBadge}>valfritt</span>
               </label>
               <p className={s.helperText}>
-                Sök efter specifika parfymer — välj från listan eller tryck Enter för att lägga till.
+                Sök efter specifika parfymer, välj från listan eller tryck Enter för att lägga till.
               </p>
               <DropdownChipInput
                 placeholder="T.ex. Sauvage, Black Afgano, Aventus…"
@@ -285,7 +285,7 @@ export function AssesmentStepOne({
           <div className={s.cardNoSpace}>
             <h2 className={s.sectionTitleMb}>Typ av parfymmärke</h2>
             <p className={s.helperText} style={{ marginBottom: "1rem", marginTop: "-0.75rem" }}>
-              Välj en eller flera — AI:n rekommenderar enbart från de valda kategorierna.
+              Välj en eller flera.
             </p>
             <div className={s.grid3}>
               {([
