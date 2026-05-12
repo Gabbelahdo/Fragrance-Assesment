@@ -146,33 +146,79 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
     notes = [n.strip() for n in prefs.notes_text.split(",") if n.strip()]
     notes_str = ", ".join(notes) if notes else "no specific preference"
 
-    lines = [
-        "Recommend fragrances based on these preferences:",
+    lines: list[str] = []
+
+    # ── PRIMARY DIRECTIVES (highest priority — must be obeyed first) ──────────
+    # Liked brands and fragrances are the user's strongest signal.
+    # Description captures specific intent that overrides generic matching.
+    has_primary = (
+        prefs.liked_brands_text.strip()
+        or prefs.liked_fragrances_text.strip()
+        or prefs.description_text.strip()
+    )
+
+    if has_primary:
+        lines += ["PRIMARY DIRECTIVES (these override generic note/season matching):", ""]
+
+        if prefs.liked_brands_text.strip():
+            brands = prefs.liked_brands_text.strip()
+            lines += [
+                f"  PREFERRED BRANDS: {brands}",
+                f"  → Strongly prioritise fragrances FROM these brands. At least 2–3 of",
+                f"    the 5 recommendations should be from {brands} unless truly impossible.",
+                f"    Do not ignore this — if the user listed a brand, they want to see it.",
+                "",
+            ]
+
+        if prefs.liked_fragrances_text.strip():
+            frags = prefs.liked_fragrances_text.strip()
+            lines += [
+                f"  LIKED FRAGRANCES: {frags}",
+                f"  → Recommend fragrances with a similar scent profile, DNA, and style",
+                f"    to these. They are the user's taste reference point.",
+                "",
+            ]
+
+        if prefs.description_text.strip():
+            desc = prefs.description_text.strip()
+            lines += [
+                f"  WHAT THEY'RE LOOKING FOR: {desc}",
+                f"  → Treat this as the primary brief. If they name a specific fragrance",
+                f"    or brand (e.g. 'dupe of Jean Paul Gaultier'), every recommendation",
+                f"    must target that exact scent direction — not a generic popular dupe.",
+                "",
+            ]
+
+    # ── SECONDARY PREFERENCES (used to fine-tune within primary constraints) ──
+    lines += [
+        "Secondary preferences (use to refine within the primary directives above):",
         "",
         f"  Budget: {prefs.budget_min}–{prefs.budget_max} SEK",
-        f"  Preferred season: {_SEASON_LABEL.get(prefs.season, prefs.season)}",
-        f"  Fragrance gender: {prefs.fragrance_gender}",
+        f"  Season: {_SEASON_LABEL.get(prefs.season, prefs.season)}",
+        f"  Gender: {prefs.fragrance_gender}",
         f"  Preferred notes: {notes_str}",
-        f"  Preferred categories: {', '.join(categories)}",
+        f"  Allowed categories: {', '.join(categories)}",
     ]
 
-    # Optional fields — only included when the user actually filled them in
-    if prefs.description_text.strip():
-        lines.append(f"  What they're looking for: {prefs.description_text.strip()}")
-
-    if prefs.liked_brands_text.strip():
-        lines.append(f"  Fragrance brands they like: {prefs.liked_brands_text.strip()}")
-
-    if prefs.liked_fragrances_text.strip():
-        lines.append(f"  Specific fragrances they like: {prefs.liked_fragrances_text.strip()}")
-
-    # Explicit category enforcement reminder in the user message
+    # ── CATEGORY ENFORCEMENT REMINDER ─────────────────────────────────────────
     if prefs.prefer_dupe and not prefs.prefer_niche and not prefs.prefer_designer:
-        lines.append("  ⚠️  ONLY dupes allowed — all 5 must be budget/inspired-by fragrances (type=dupe). No niche, no designer.")
+        lines += [
+            "",
+            "CATEGORY ENFORCEMENT: ONLY dupes allowed — all 5 must be budget/inspired-by",
+            "fragrances (type=dupe). No niche, no designer.",
+        ]
     elif prefs.prefer_niche and not prefs.prefer_designer and not prefs.prefer_dupe:
-        lines.append("  ⚠️  ONLY niche allowed — all 5 must be niche/artisan fragrances (type=niche). No designer, no dupe.")
+        lines += [
+            "",
+            "CATEGORY ENFORCEMENT: ONLY niche allowed — all 5 must be niche/artisan",
+            "fragrances (type=niche). No designer, no dupe.",
+        ]
     elif prefs.prefer_designer and not prefs.prefer_niche and not prefs.prefer_dupe:
-        lines.append("  ⚠️  ONLY designer allowed — all 5 must be mainstream designer fragrances (type=designer). No niche, no dupe.")
+        lines += [
+            "",
+            "CATEGORY ENFORCEMENT: ONLY designer allowed — all 5 must be mainstream",
+            "designer fragrances (type=designer). No niche, no dupe.",
+        ]
 
     lines += ["", "Recommend exactly 5 fragrances."]
     return "\n".join(lines)
@@ -198,7 +244,9 @@ def _extract_json(text: str) -> dict:
 # History:
 #   v1 — initial
 #   v2 — stronger category enforcement prompt + Opus for single-category requests
-_CACHE_VERSION = 2
+#   v3 — description_text added to hash; prompt rewrite to treat liked_brands,
+#         liked_fragrances, and description as primary directives
+_CACHE_VERSION = 3
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
@@ -210,6 +258,7 @@ def _preference_hash(prefs: AssessmentPreferences) -> str:
         "season":                prefs.season,
         "fragrance_gender":      prefs.fragrance_gender,
         "notes_text":            prefs.notes_text.strip().lower(),
+        "description_text":      prefs.description_text.strip().lower(),  # was missing — caused cached results to ignore description changes
         "prefer_niche":          prefs.prefer_niche,
         "prefer_designer":       prefs.prefer_designer,
         "prefer_dupe":           prefs.prefer_dupe,
