@@ -10,20 +10,15 @@ import { step1Schema } from "./validation";
 import type { Step1Values } from "./validation";
 import type { FragranceRecommendation } from "./types";
 import { AssessmentError, submitAssessment } from "../../services/fragranceApi";
+import { useLang } from "../../i18n";
 import s from "./AssesmentForm.module.css";
-
-// ── Loading messages — cycle through to show progress ─────────────────────────
-const LOADING_MESSAGES = [
-  { title: "Analyserar dina preferenser…",    subtitle: "Det här tar ungefär 30 sekunder" },
-  { title: "Konsulterar AI-doftexperten…",    subtitle: "Går igenom tusentals dofter" },
-  { title: "Matchar noter och säsonger…",     subtitle: "Snart klart" },
-  { title: "Avslutar rekommendationerna…",    subtitle: "Nästan där" },
-];
-const LOADING_STEP_DELAYS = [8000, 16000, 24000]; // ms after start to advance step
 
 type AppView = "step1" | "loading-results" | "results" | "error";
 
+const LOADING_STEP_DELAYS = [8000, 16000, 24000];
+
 export function AssessmentForm() {
+  const { t } = useLang();
   const [view, setView]                       = useState<AppView>("step1");
   const [recommendations, setRecommendations] = useState<FragranceRecommendation[]>([]);
   const [errorInfo, setErrorInfo]             = useState<{ title: string; message: string } | null>(null);
@@ -36,7 +31,6 @@ export function AssessmentForm() {
     handleCustomNoteKeyDown, isNoteSelected,
   } = useNoteChips();
 
-  // Liked brands chip input
   const {
     chips: likedBrands,
     input: likedBrandInput,
@@ -47,7 +41,6 @@ export function AssessmentForm() {
     handleKeyDown: handleLikedBrandKeyDown,
   } = useChipInput();
 
-  // Liked fragrances chip input
   const {
     chips: likedFragrances,
     input: likedFragranceInput,
@@ -70,22 +63,18 @@ export function AssessmentForm() {
 
   const { setValue: setStep1Value, formState: { isSubmitted: isStep1Submitted } } = step1Form;
 
-  // ── Sync selected notes into hidden field ──────────────────────────────────
   useEffect(() => {
     setStep1Value("notesText", selectedNotes.join(", "), { shouldValidate: isStep1Submitted });
   }, [selectedNotes, setStep1Value, isStep1Submitted]);
 
-  // ── Sync liked brands chips into hidden field ─────────────────────────────
   useEffect(() => {
     setStep1Value("likedBrandsText", likedBrands.join(", "));
   }, [likedBrands, setStep1Value]);
 
-  // ── Sync liked fragrances chips into hidden field ──────────────────────────
   useEffect(() => {
     setStep1Value("likedFragrancesText", likedFragrances.join(", "));
   }, [likedFragrances, setStep1Value]);
 
-  // ── Cycle loading messages while waiting for AI ────────────────────────────
   useEffect(() => {
     if (view !== "loading-results") {
       setLoadingStep(0);
@@ -98,10 +87,8 @@ export function AssessmentForm() {
     return () => loadingTimers.current.forEach(clearTimeout);
   }, [view]);
 
-  // ── Submit — no Step 2, go straight to AI ─────────────────────────────────
   const onStep1Submit = async (step1Data: Step1Values) => {
     setView("loading-results");
-
     try {
       const results = await submitAssessment(step1Data);
       setRecommendations(results);
@@ -109,27 +96,17 @@ export function AssessmentForm() {
     } catch (err) {
       if (err instanceof AssessmentError) {
         if (err.status === 429) {
-          setErrorInfo({
-            title:   "För många sökningar",
-            message: err.detail,
-          });
+          setErrorInfo({ title: t.errTooMany, message: err.detail });
         } else {
-          setErrorInfo({
-            title:   "Något gick fel",
-            message: "Servern svarade inte som förväntat. Försök igen om en stund.",
-          });
+          setErrorInfo({ title: "Något gick fel", message: t.errServer });
         }
       } else {
-        setErrorInfo({
-          title:   "Kunde inte ansluta",
-          message: "Kontrollera att backend körs på localhost:8000 och försök igen.",
-        });
+        setErrorInfo({ title: "Kunde inte ansluta", message: t.errConnect });
       }
       setView("error");
     }
   };
 
-  // ── Restart ────────────────────────────────────────────────────────────────
   const handleRestart = () => {
     step1Form.reset();
     setRecommendations([]);
@@ -137,10 +114,9 @@ export function AssessmentForm() {
     setView("step1");
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
-
   if (view === "loading-results") {
-    const { title, subtitle } = LOADING_MESSAGES[Math.min(loadingStep, LOADING_MESSAGES.length - 1)];
+    const msgs = t.loading;
+    const { title, subtitle } = msgs[Math.min(loadingStep, msgs.length - 1)];
     return (
       <div className={s.loadingPage}>
         <div className={s.loadingContent}>
@@ -165,11 +141,11 @@ export function AssessmentForm() {
           <div className={s.errorActions}>
             <button onClick={() => setView("step1")} className={s.retryButton}>
               <RotateCcw size={15} />
-              <span>Försök igen</span>
+              <span>{t.retryBtn}</span>
             </button>
             <button onClick={handleRestart} className={s.errorBackButton}>
               <Clock size={15} />
-              <span>Börja om från början</span>
+              <span>{t.backBtn}</span>
             </button>
           </div>
         </div>

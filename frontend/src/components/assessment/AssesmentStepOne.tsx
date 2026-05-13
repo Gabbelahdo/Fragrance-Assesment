@@ -5,17 +5,16 @@ import {
   FlaskConical, Flower2, Sun, Leaf, Snowflake, Globe,
   User, User2, Users, Gem, Tag, Copy, ArrowRight,
 } from "lucide-react";
-import { predefinedNotes, seasons } from "./constants";
 import { normalizeNote } from "./noteUtils";
 import { DropdownChipInput } from "./DropdownChipInput";
 import { useFragellaSuggest } from "./hooks/useFragellaSuggest";
 import { useNoteSuggest } from "./hooks/useNoteSuggest";
+import { useLang } from "../../i18n";
 import type { Season } from "./types";
 import type { Step1Values } from "./validation";
 import s from "./AssesmentForm.module.css";
 
-// Each season gets its own icon and colour
-const seasonConfig: Record<Season, { icon: React.ReactNode; color: string }> = {
+const seasonIcons: Record<Season, { icon: React.ReactNode; color: string }> = {
   spring:   { icon: <Flower2   size={22} strokeWidth={1.5} />, color: "#f9a8d4" },
   summer:   { icon: <Sun       size={22} strokeWidth={1.5} />, color: "#fde68a" },
   autumn:   { icon: <Leaf      size={22} strokeWidth={1.5} />, color: "#fdba74" },
@@ -37,7 +36,6 @@ type AssesmentStepOneProps = {
   errors: FieldErrors<Step1Values>;
   initialBudgetMin: number;
   initialBudgetMax: number;
-  // Liked brands chip field
   likedBrands: string[];
   likedBrandInput: string;
   setLikedBrandInput: (value: string) => void;
@@ -45,7 +43,6 @@ type AssesmentStepOneProps = {
   addLikedBrandValue: (value: string) => void;
   removeLikedBrand: (chip: string) => void;
   handleLikedBrandKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void;
-  // Liked fragrances chip field
   likedFragrances: string[];
   likedFragranceInput: string;
   setLikedFragranceInput: (value: string) => void;
@@ -65,19 +62,23 @@ export function AssesmentStepOne({
   likedFragrances, likedFragranceInput, setLikedFragranceInput,
   addLikedFragrance, addLikedFragranceValue, removeLikedFragrance, handleLikedFragranceKeyDown,
 }: AssesmentStepOneProps) {
+  const { t } = useLang();
   const [displayMin, setDisplayMin] = useState(initialBudgetMin);
   const [displayMax, setDisplayMax] = useState(initialBudgetMax);
 
   const budgetMinField = register("budgetMin", { valueAsNumber: true });
   const budgetMaxField = register("budgetMax", { valueAsNumber: true });
 
-  const predefinedLabels = new Set(predefinedNotes.map((n) => normalizeNote(n.label)));
+  const predefinedLabels = new Set(t.predefinedNotes.map((n) => normalizeNote(n.label)));
   const customSelectedNotes = selectedNotes.filter((n) => !predefinedLabels.has(normalizeNote(n)));
 
-  // ── Live suggestions from Fragella ───────────────────────────────────────────
   const brandSuggest    = useFragellaSuggest(likedBrandInput, "brand");
   const fragSuggest     = useFragellaSuggest(likedFragranceInput, "fragrance");
   const noteSuggestions = useNoteSuggest(customNoteInput, selectedNotes);
+
+  const seasonEntries = (["spring", "summer", "autumn", "winter", "all_year"] as Season[]).map(
+    (value) => ({ value, label: t.seasons[value] }),
+  );
 
   return (
     <div className={s.page}>
@@ -86,35 +87,32 @@ export function AssesmentStepOne({
           <div className={s.headerIcon}>
             <FlaskConical size={52} strokeWidth={1.25} />
           </div>
-          <h1 className={s.headerTitle}>Doftanalys</h1>
-          <p className={s.headerSubtitle}>
-            Berätta vad du letar efter, vi hittar din perfekta doft!
-          </p>
+          <h1 className={s.headerTitle}>{t.heroTitle}</h1>
+          <p className={s.headerSubtitle}>{t.heroSubtitle}</p>
         </div>
-
 
         <form onSubmit={onSubmit} className={s.form}>
           <div className={s.card}>
-            <h2 className={s.sectionTitle}>Preferenser</h2>
+            <h2 className={s.sectionTitle}>{t.sectionPreferences}</h2>
 
-            {/* Budget sliders */}
+            {/* Budget */}
             <div className={s.field}>
               <div className={s.budgetRow}>
-                <label className={s.fieldLabel}>Budget</label>
+                <label className={s.fieldLabel}>{t.budget}</label>
                 <span className={s.budgetDisplay}>
                   {displayMin.toLocaleString("sv-SE")} – {displayMax.toLocaleString("sv-SE")} kr
                 </span>
               </div>
               <div className={s.sliderGroup}>
                 <div className={s.sliderRow}>
-                  <span className={s.sliderLabel}>Min</span>
+                  <span className={s.sliderLabel}>{t.budgetMin}</span>
                   <input type="range" min={0} max={20000} step={100} className={s.slider}
                     {...budgetMinField}
                     onChange={(e) => { budgetMinField.onChange(e); setDisplayMin(Number(e.target.value)); }}
                   />
                 </div>
                 <div className={s.sliderRow}>
-                  <span className={s.sliderLabel}>Max</span>
+                  <span className={s.sliderLabel}>{t.budgetMax}</span>
                   <input type="range" min={0} max={20000} step={100} className={s.slider}
                     {...budgetMaxField}
                     onChange={(e) => { budgetMaxField.onChange(e); setDisplayMax(Number(e.target.value)); }}
@@ -126,12 +124,12 @@ export function AssesmentStepOne({
               )}
             </div>
 
-            {/* Season — colorful card tiles */}
+            {/* Season */}
             <div className={s.field}>
-              <label className={s.fieldLabel}>Säsong</label>
+              <label className={s.fieldLabel}>{t.season}</label>
               <div className={s.seasonGrid}>
-                {seasons.map(({ value, label }) => {
-                  const { icon, color } = seasonConfig[value];
+                {seasonEntries.map(({ value, label }) => {
+                  const { icon, color } = seasonIcons[value];
                   return (
                     <label
                       key={value}
@@ -148,14 +146,14 @@ export function AssesmentStepOne({
               {errors.season && <p className={s.fieldError}>{errors.season.message}</p>}
             </div>
 
-            {/* Fragrance gender — colorful tiles */}
+            {/* Gender */}
             <div className={s.field}>
-              <label className={s.fieldLabel}>Kön</label>
+              <label className={s.fieldLabel}>{t.genderLabel}</label>
               <div className={s.grid3}>
                 {([
-                  { value: "men",    label: "Herr",   icon: <User  size={22} strokeWidth={1.5} />, color: "#93c5fd" },
-                  { value: "women",  label: "Dam",    icon: <User2 size={22} strokeWidth={1.5} />, color: "#f9a8d4" },
-                  { value: "unisex", label: "Unisex", icon: <Users size={22} strokeWidth={1.5} />, color: "#d8b4fe" },
+                  { value: "men",    label: t.genderMen,    icon: <User  size={22} strokeWidth={1.5} />, color: "#93c5fd" },
+                  { value: "women",  label: t.genderWomen,  icon: <User2 size={22} strokeWidth={1.5} />, color: "#f9a8d4" },
+                  { value: "unisex", label: t.genderUnisex, icon: <Users size={22} strokeWidth={1.5} />, color: "#d8b4fe" },
                 ] as const).map(({ value, label, icon, color }) => (
                   <label key={value} className={s.checkboxCard} style={{ "--icon-color": color } as React.CSSProperties}>
                     <input type="radio" value={value} {...register("fragranceGender")} className={s.checkboxHidden} />
@@ -167,90 +165,76 @@ export function AssesmentStepOne({
               {errors.fragranceGender && <p className={s.fieldError}>{errors.fragranceGender.message}</p>}
             </div>
 
-            {/* Free description — optional */}
+            {/* Description */}
             <div className={s.field}>
               <label className={s.fieldLabel}>
-                Vad söker du?
-                <span className={s.optionalBadge}>valfritt</span>
+                {t.descriptionLabel}
+                <span className={s.optionalBadge}>{t.optional}</span>
               </label>
-              <p className={s.helperText}>Beskriv fritt vad du har i åtanke.</p>
+              <p className={s.helperText}>{t.descriptionHelper}</p>
               <textarea
-                placeholder="T.ex. en varm och kryddig doft för höst och vinter, inte för söt…"
+                placeholder={t.descriptionPlaceholder}
                 {...register("descriptionText")}
                 className={s.textarea}
               />
             </div>
 
-            {/* Liked brands — optional, with Fragella dropdown */}
+            {/* Liked brands */}
             <div className={s.field}>
               <label className={s.fieldLabel}>
-                Märken du gillar
-                <span className={s.optionalBadge}>valfritt</span>
+                {t.likedBrandsLabel}
+                <span className={s.optionalBadge}>{t.optional}</span>
               </label>
-              <p className={s.helperText}>
-                Sök efter doftmärken, välj från listan eller tryck Enter för att lägga till.
-              </p>
+              <p className={s.helperText}>{t.likedBrandsHelper}</p>
               <DropdownChipInput
-                placeholder="T.ex. Creed, Maison Margiela, Dior…"
+                placeholder={t.likedBrandsPh}
                 chips={likedBrands}
                 input={likedBrandInput}
                 setInput={setLikedBrandInput}
                 addChip={addLikedBrand}
                 removeChip={removeLikedBrand}
                 handleKeyDown={handleLikedBrandKeyDown}
-                suggestions={brandSuggest.suggestions.map((s) => ({ primary: s.name }))}
+                suggestions={brandSuggest.suggestions.map((sg) => ({ primary: sg.name }))}
                 isLoading={brandSuggest.isLoading}
-                onSelectSuggestion={(sg) => {
-                  addLikedBrandValue(sg.primary);
-                  setLikedBrandInput("");
-                }}
-                addButtonLabel="Lägg till"
+                onSelectSuggestion={(sg) => { addLikedBrandValue(sg.primary); setLikedBrandInput(""); }}
+                addButtonLabel={t.likedBrandsAdd}
               />
               <input type="hidden" {...register("likedBrandsText")} />
             </div>
 
-            {/* Liked fragrances — optional, with Fragella dropdown */}
+            {/* Liked fragrances */}
             <div className={s.field}>
               <label className={s.fieldLabel}>
-                Parfymer du gillar
-                <span className={s.optionalBadge}>valfritt</span>
+                {t.likedFragsLabel}
+                <span className={s.optionalBadge}>{t.optional}</span>
               </label>
-              <p className={s.helperText}>
-                Sök efter specifika parfymer, välj från listan eller tryck Enter för att lägga till.
-              </p>
+              <p className={s.helperText}>{t.likedFragsHelper}</p>
               <DropdownChipInput
-                placeholder="T.ex. Sauvage, Black Afgano, Aventus…"
+                placeholder={t.likedFragsPh}
                 chips={likedFragrances}
                 input={likedFragranceInput}
                 setInput={setLikedFragranceInput}
                 addChip={addLikedFragrance}
                 removeChip={removeLikedFragrance}
                 handleKeyDown={handleLikedFragranceKeyDown}
-                suggestions={fragSuggest.suggestions.map((s) => ({
-                  primary: s.name,
-                  secondary: s.brand,
-                }))}
+                suggestions={fragSuggest.suggestions.map((sg) => ({ primary: sg.name, secondary: sg.brand }))}
                 isLoading={fragSuggest.isLoading}
-                onSelectSuggestion={(sg) => {
-                  addLikedFragranceValue(sg.primary);
-                  setLikedFragranceInput("");
-                }}
-                addButtonLabel="Lägg till"
+                onSelectSuggestion={(sg) => { addLikedFragranceValue(sg.primary); setLikedFragranceInput(""); }}
+                addButtonLabel={t.likedFragsAdd}
               />
               <input type="hidden" {...register("likedFragrancesText")} />
             </div>
 
-            {/* Notes — predefined chips + custom dropdown */}
+            {/* Notes */}
             <div className={s.field}>
               <label className={s.fieldLabel}>
-                Favoritnoter
-                <span className={s.optionalBadge}>valfritt</span>
+                {t.notesLabel}
+                <span className={s.optionalBadge}>{t.optional}</span>
               </label>
-              <p className={s.helperText}>Välj bland färdiga noter eller sök efter fler.</p>
+              <p className={s.helperText}>{t.notesHelper}</p>
 
-              {/* Quick-click predefined note chips */}
               <div className={s.noteTagGrid}>
-                {predefinedNotes.map((note) => (
+                {t.predefinedNotes.map((note) => (
                   <button
                     key={note.label}
                     type="button"
@@ -263,9 +247,8 @@ export function AssesmentStepOne({
                 ))}
               </div>
 
-              {/* Custom note input with dropdown */}
               <DropdownChipInput
-                placeholder="Sök eller skriv en valfri not…"
+                placeholder={t.notesPh}
                 chips={customSelectedNotes}
                 input={customNoteInput}
                 setInput={setCustomNoteInput}
@@ -273,11 +256,8 @@ export function AssesmentStepOne({
                 removeChip={removeNote}
                 handleKeyDown={handleCustomNoteKeyDown}
                 suggestions={noteSuggestions.map((n) => ({ primary: n }))}
-                onSelectSuggestion={(sg) => {
-                  toggleNote(sg.primary);
-                  setCustomNoteInput("");
-                }}
-                addButtonLabel="Lägg till"
+                onSelectSuggestion={(sg) => { toggleNote(sg.primary); setCustomNoteInput(""); }}
+                addButtonLabel={t.notesAdd}
               />
 
               <input type="hidden" {...register("notesText")} />
@@ -285,17 +265,17 @@ export function AssesmentStepOne({
             </div>
           </div>
 
-          {/* Fragrance type — colorful tiles */}
+          {/* Fragrance type */}
           <div className={s.cardNoSpace}>
-            <h2 className={s.sectionTitleMb}>Typ av parfymmärke</h2>
+            <h2 className={s.sectionTitleMb}>{t.sectionFragranceType}</h2>
             <p className={s.helperText} style={{ marginBottom: "1rem", marginTop: "-0.75rem" }}>
-              Välj en eller flera.
+              {t.fragranceTypeHelper}
             </p>
             <div className={s.grid3}>
               {([
-                { name: "preferNiche",    label: "Nisch",    icon: <Gem  size={22} strokeWidth={1.5} />, color: "#e879f9" },
-                { name: "preferDesigner", label: "Designer", icon: <Tag  size={22} strokeWidth={1.5} />, color: "#fde68a" },
-                { name: "preferDupe",     label: "Dupe",     icon: <Copy size={22} strokeWidth={1.5} />, color: "#86efac" },
+                { name: "preferNiche",    label: t.niche,    icon: <Gem  size={22} strokeWidth={1.5} />, color: "#e879f9" },
+                { name: "preferDesigner", label: t.designer, icon: <Tag  size={22} strokeWidth={1.5} />, color: "#fde68a" },
+                { name: "preferDupe",     label: t.dupe,     icon: <Copy size={22} strokeWidth={1.5} />, color: "#86efac" },
               ] as const).map(({ name, label, icon, color }) => (
                 <label key={name} className={s.checkboxCard} style={{ "--icon-color": color } as React.CSSProperties}>
                   <input type="checkbox" {...register(name)} className={s.checkboxHidden} />
@@ -310,7 +290,7 @@ export function AssesmentStepOne({
           </div>
 
           <button type="submit" className={s.submitButton}>
-            <span>Nästa</span>
+            <span>{t.next}</span>
             <ArrowRight size={16} />
           </button>
         </form>
