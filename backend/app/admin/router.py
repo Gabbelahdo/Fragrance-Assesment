@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.fragrances.seed import ensure_suggest_seed, SEED_BRANDS, SEED_FRAGRANCES
+from app.fragrances.seed import ensure_suggest_seed, fragella_bulk_seed, SEED_BRANDS, SEED_FRAGRANCES
 
 router = APIRouter()
 
@@ -42,7 +42,7 @@ async def seed_status(key: str = Query(...)):
 @router.post("/reseed-suggest")
 async def reseed_suggest(key: str = Query(...)):
     """
-    Drop the suggest_seed collection and re-seed it from scratch.
+    Drop the suggest_seed collection and re-seed it from the static list.
     Use this if the collection is empty after a deploy.
     """
     _check_key(key)
@@ -55,3 +55,17 @@ async def reseed_suggest(key: str = Query(...)):
 
     count = await db["suggest_seed"].count_documents({})
     return {"seeded": count, "expected": len(SEED_BRANDS) + len(SEED_FRAGRANCES)}
+
+
+@router.post("/fragella-bulk-seed")
+async def fragella_bulk_seed_endpoint(key: str = Query(...)):
+    """
+    Sweep Fragella A–Z (26 API calls) and upsert every brand and fragrance
+    found into suggest_seed.  Existing documents are never deleted.
+
+    Typical result: 2 000–5 000 fragrances + all their brands in ~30 s.
+    Safe to run multiple times — fully idempotent via upsert.
+    """
+    _check_key(key)
+    result = await fragella_bulk_seed()
+    return result

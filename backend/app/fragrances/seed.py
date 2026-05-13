@@ -10,6 +10,12 @@ Fragella is only called when the query produces no seed hits.
 """
 from __future__ import annotations
 
+import asyncio
+
+import httpx
+from pymongo import ReplaceOne
+
+from app.core.config import settings
 from app.core.database import get_db
 
 # ---------------------------------------------------------------------------
@@ -348,3 +354,103 @@ async def ensure_suggest_seed() -> None:
 
     except Exception as exc:
         print(f"[fragrances.seed] Seed error: {exc}")
+
+
+async def fragella_bulk_seed() -> dict:
+    """
+    Bulk-populate suggest_seed by sweeping Fragella A–Z (26 API calls).
+
+    For each letter we request up to 200 fragrances whose name starts with
+    that letter.  Brands are extracted from the results — no separate calls.
+    All documents are upserted so the collection never loses existing data.
+
+    Returns a summary dict with counts.
+    """
+    url     = f"{settings.fragrance_api_url}/v1/fragrances"
+    headers = {"x-api-key": settings.fragrance_api_key}
+    col     = get_db()["suggest_seed"]
+
+    total_frags  = 0
+    total_brands = 0
+    seen_brands: set[str] = set()
+
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        for letter in "abcdefghijklmnopqrstuvwxyz":
+            try:
+                resp = await client.get(
+                    url,
+                    params={"search": letter, "limit": 200},
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                data: list[dict] = resp.json()
+            except Exception as exc:
+                print(f"[fragrances.seed] Fragella sweep '{letter}' failed: {exc}")
+                await asyncio.sleep(0.5)
+                continue
+
+            ops: list[ReplaceOne] = []
+
+            for item in data:
+                name  = (item.get("Name")  or "").strip()
+                brand = (item.get("Brand") or "").strip()
+                if not name:
+                    continue
+
+                # Fragrance document
+                frag_id = f"frag:{name.lower()}|{brand.lower()}"
+                ops.append(ReplaceOne(
+                    {"_id": frag_id},
+                    {
+                        "_id":         frag_id,
+                        "type":        "fragrance",
+                        "name":        name,
+                        "brand":       brand,
+                        "name_lower":  name.lower(),
+                        "brand_lower": brand.lower(),
+                    },
+                    upsert=True,
+                ))
+                total_frags += 1
+
+                # Brand document (once per unique brand)
+                b_lower = brand.lower()
+                if brand and b_lower not in seen_brands:
+                    seen_brands.add(b_lower)
+                    brand_id = f"brand:{b_lower}"
+                    ops.append(ReplaceOne(
+                        {"_id": brand_id},
+                        {
+                            "_id":        brand_id,
+                            "type":       "brand",
+                            "name":       brand,
+                            "name_lower": b_lower,
+                        },
+                        upsert=True,
+                    ))
+                    total_brands += 1
+
+            # Bulk-write in batches of 50 to respect Cosmos DB RU limits
+            BATCH = 50
+            for start in range(0, len(ops), BATCH):
+                try:
+                    await col.bulk_write(ops[start : start + BATCH], ordered=False)
+                except Exception as exc:
+                    print(f"[fragrances.seed] bulk_write error (letter={letter}): {exc}")
+
+            print(f"[fragrances.seed] '{letter}': {len(data)} fragrances fetched.")
+
+            # Small pause between letters to be kind to the Fragella API
+            await asyncio.sleep(0.3)
+
+    final_count = await col.count_documents({})
+    print(
+        f"[fragrances.seed] Bulk seed complete — "
+        f"{total_frags} fragrances, {total_brands} brands, "
+        f"{final_count} total docs in collection."
+    )
+    return {
+        "fragrances_fetched": total_frags,
+        "brands_fetched":     total_brands,
+        "total_in_collection": final_count,
+    }
