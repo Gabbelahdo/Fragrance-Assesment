@@ -352,6 +352,26 @@ def _build_user_message(
             "  Aim for at least 2–3 recommendations from these brands when possible.",
         ]
 
+    # ── Implicit notes from description keywords ──────────────────────────────
+    # When the description contains freshness/scent-cluster keywords, inject
+    # concrete notes so Claude has a precise brief even for vague descriptions.
+    desc_notes = _extract_description_notes(prefs.description_text)
+    if desc_notes and not notes:  # don't override if user already gave notes
+        implicit_str = ", ".join(desc_notes)
+        lines += [
+            "",
+            f"[IMPLICIT NOTES from description] {implicit_str}",
+            "  These notes were inferred from the description. Use them to guide scent selection.",
+        ]
+    elif desc_notes:
+        # Merge with user notes — description inference adds extra signal
+        all_notes = list(dict.fromkeys(notes + desc_notes))  # dedupe, preserve order
+        lines_idx = next(
+            (i for i, l in enumerate(lines) if l.startswith("[NOTES")), None
+        )
+        if lines_idx is not None:
+            lines[lines_idx] = f"[NOTES — supporting detail] {', '.join(all_notes)}"
+
     lines += ["", "Recommend exactly 5 fragrances."]
     return "\n".join(lines)
 
@@ -454,6 +474,9 @@ _NOTE_SEASON: dict[str, dict[str, float]] = {
     "nutmeg":          {"autumn": 0.9, "winter": 0.7, "summer": -0.5},
     "saffron":         {"winter": 0.8, "autumn": 0.7, "summer": -0.5},
     "black pepper":    {"autumn": 0.6, "winter": 0.5, "summer": -0.2},
+    "pink pepper":     {"autumn": 0.5, "winter": 0.3, "summer": -0.1},
+    "white pepper":    {"autumn": 0.5, "winter": 0.3, "summer": -0.1},
+    "pepper":          {"autumn": 0.4, "winter": 0.3, "summer": -0.1},
     # ── Versatile (low weights, no strong conflict) ───────────────────────────
     "rose":            {"spring": 0.6, "summer": 0.3, "autumn": 0.2},
     "jasmine":         {"spring": 0.5, "summer": 0.5, "autumn": 0.2},
@@ -470,7 +493,33 @@ _NOTE_SEASON: dict[str, dict[str, float]] = {
     "musk":            {},  # neutral — no season preference
     "white musk":      {},
     "woody":           {"autumn": 0.3, "winter": 0.2},
+    # ── Explicit Fragella aliases (alternate note names returned by API) ───────
+    # Fragella sometimes returns compound names like "Agarwood (Oud)" — these
+    # would miss the "oud" key with exact matching, so we register them directly.
+    "agarwood":        {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
+    "agarwood (oud)":  {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
+    "oud wood":        {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
+    "tonka bean":      {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
+    "tonka beans":     {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
+    "sea water":       {"summer": 1.5, "spring": 0.3, "winter": -1.0},
+    "salt":            {"summer": 1.2, "spring": 0.2, "winter": -0.5},
+    "fresh":           {"summer": 1.0, "spring": 0.7},
+    "clean":           {"summer": 0.8, "spring": 0.6},
+    "powdery":         {"autumn": 0.4, "winter": 0.3, "summer": -0.2},
+    "resinous":        {"winter": 0.8, "autumn": 0.6, "summer": -0.7},
+    "warm spices":     {"winter": 0.9, "autumn": 0.8, "summer": -0.8},
+    "beeswax":         {"winter": 0.6, "autumn": 0.5, "summer": -0.3},
+    "iso e super":     {},
+    "ambroxan":        {"autumn": 0.3, "winter": 0.3},
 }
+
+# Pre-compiled word-boundary patterns for all keys — built once at module load.
+# Used by _season_score for substring matching when exact lookup fails.
+_NOTE_SEASON_PATTERNS: list[tuple[re.Pattern, dict]] = [
+    (re.compile(r"\b" + re.escape(k) + r"\b"), v)
+    for k, v in _NOTE_SEASON.items()
+    if k  # skip empty string keys just in case
+]
 
 
 def _season_score(notes: list[str], season: str) -> float:
@@ -478,13 +527,122 @@ def _season_score(notes: list[str], season: str) -> float:
     Return a season-alignment score for a fragrance given its actual notes.
     Positive = good fit, negative = poor fit.
     Returns 0.0 for 'all_year' (no season penalty applied).
+
+    Uses two-phase lookup:
+    1. Exact match (fast path) — e.g. "oud" → found directly.
+    2. Word-boundary substring (fallback) — e.g. "Agarwood (Oud)" → matches "oud".
+       The longest matching key wins to avoid false positives.
     """
     if season == "all_year" or not notes:
         return 0.0
-    return sum(
-        _NOTE_SEASON.get(n.strip().lower(), {}).get(season, 0.0)
-        for n in notes
-    )
+
+    total = 0.0
+    for note in notes:
+        note_lower = note.strip().lower()
+
+        # Fast path: exact key match
+        if note_lower in _NOTE_SEASON:
+            total += _NOTE_SEASON[note_lower].get(season, 0.0)
+            continue
+
+        # Fallback: longest key that appears as a whole word inside the note name
+        best_weight: float | None = None
+        best_len: int = 0
+        for pattern, weights in _NOTE_SEASON_PATTERNS:
+            key_len = len(pattern.pattern) - 4  # strip \b...\b
+            if key_len > best_len and pattern.search(note_lower):
+                best_weight = weights.get(season, 0.0)
+                best_len = key_len
+        if best_weight is not None:
+            total += best_weight
+
+    return total
+
+
+# ── Fragrance-name based season heuristic ────────────────────────────────────
+# Certain keywords in a fragrance NAME strongly imply a season regardless of
+# what notes Fragella returns (e.g. Badee Al OUD for summer = obvious mismatch).
+
+_NAME_SEASON_PENALTY: dict[str, dict[str, float]] = {
+    "oud":     {"summer": -3.0, "spring": -1.5},
+    "noir":    {"summer": -1.0},
+    "intense": {"summer": -0.5},
+    "extreme": {"summer": -0.5},
+    "inferno": {"summer": -0.8},
+    "winter":  {"summer": -2.0, "spring": -1.0},
+    "noel":    {"summer": -1.5, "spring": -0.5},
+    "nuit":    {"summer": -0.5},
+    "absolu":  {"summer": -0.3},
+}
+
+
+def _name_season_score(fragrance_name: str, season: str) -> float:
+    """
+    Additional season penalty/bonus derived from keywords in the fragrance name.
+    Catches obvious mismatches even when Fragella has no note data.
+    """
+    if season == "all_year":
+        return 0.0
+    name_lower = fragrance_name.lower()
+    total = 0.0
+    for keyword, weights in _NAME_SEASON_PENALTY.items():
+        if re.search(r"\b" + re.escape(keyword) + r"\b", name_lower):
+            total += weights.get(season, 0.0)
+    return total
+
+
+# ── Description → implicit notes ─────────────────────────────────────────────
+# When a user's free-text description contains freshness / scent-cluster keywords
+# we inject matching notes into the prompt so Claude gets a concrete scent brief
+# rather than interpreting vague descriptions through popularity bias.
+
+_DESCRIPTION_NOTE_CLUSTERS: list[tuple[re.Pattern, list[str]]] = [
+    # Fresh / shower / clean
+    (re.compile(r"nydusch|freshly shower|just shower|after shower|shower gel|"
+                r"clean\b|soapy|soap\b|tvål|ren\b|renlighet|hvit musk|white soap",
+                re.IGNORECASE),
+     ["aquatic", "clean", "fresh", "white musk", "ozonic", "green"]),
+    # Aquatic / ocean / beach
+    (re.compile(r"hav|ocean|beach|seaside|sea breeze|salt water|aquatic|water",
+                re.IGNORECASE),
+     ["marine", "aquatic", "sea salt", "ozonic", "bergamot"]),
+    # Citrus burst
+    (re.compile(r"citrus|lime|lemon|grapefruit|sitrus|citrusskal",
+                re.IGNORECASE),
+     ["bergamot", "lemon", "grapefruit", "citrus"]),
+    # Warm / cozy / gourmand
+    (re.compile(r"varm|cozy|cosy|mysig|kanel|vanilj|söt|gourmand|baked|cookie",
+                re.IGNORECASE),
+     ["vanilla", "tonka", "cinnamon", "amber"]),
+    # Woody / forest
+    (re.compile(r"skog|forest|woods|träig|cedar|sandalwood",
+                re.IGNORECASE),
+     ["cedar", "sandalwood", "vetiver", "woody"]),
+    # Floral
+    (re.compile(r"blommig|floral|blomma|rose|jasmin|peony|pion",
+                re.IGNORECASE),
+     ["rose", "jasmine", "peony", "neroli"]),
+    # Spicy / oriental
+    (re.compile(r"kryddig|spicy|orientalisk|oriental|oud|rökig|smoky",
+                re.IGNORECASE),
+     ["oud", "incense", "amber", "saffron", "tobacco"]),
+]
+
+
+def _extract_description_notes(description: str) -> list[str]:
+    """
+    Map free-text description keywords to concrete note clusters.
+    Returns a deduplicated list of note strings to inject into the prompt.
+    """
+    notes: list[str] = []
+    seen: set[str] = set()
+    for pattern, cluster_notes in _DESCRIPTION_NOTE_CLUSTERS:
+        if pattern.search(description):
+            for n in cluster_notes:
+                if n not in seen:
+                    seen.add(n)
+                    notes.append(n)
+    return notes
 
 
 # ── Reference fragrance DNA helpers ──────────────────────────────────────────
@@ -584,7 +742,9 @@ def _extract_json(text: str) -> dict:
 #   v9 — brand tier reference added (Tom Ford/Mancera never dupe); stronger hallucination guard
 #   v10 — post-Claude non-fragrance brand blocklist (Pure Cosmetics repeat offender)
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
-_CACHE_VERSION = 11
+#   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
+#          name-based season heuristic; description→implicit notes injection
+_CACHE_VERSION = 12
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
@@ -741,22 +901,27 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
         )
 
     # ── Note→Season re-ranking (BB-01 fix) ───────────────────────────────────
-    # Re-rank results using verified Fragella notes to correct any season mismatches
-    # that slipped past Claude's prompt constraint.  The season score adjusts the
-    # effective rank; we never drop results (UI expects 4–5).
+    # Re-rank results using two signals:
+    #   1. _season_score  — Fragella note weights (now with substring matching)
+    #   2. _name_season_score — name-keyword heuristic (catches "Oud" in name
+    #      even when Fragella has no note data or notes partially offset the penalty)
+    # Weight: each combined score point = 6 effective match_score points.
     if prefs.season != "all_year" and results:
         for r in results:
-            sc = _season_score(r.notes, prefs.season)
-            if sc < -1.5:
+            note_sc = _season_score(r.notes, prefs.season)
+            name_sc = _name_season_score(r.name, prefs.season)
+            total_sc = note_sc + name_sc
+            if total_sc < -1.5:
                 print(
-                    f"[ai.service] Season mismatch: '{r.name}' score={sc:.1f} "
-                    f"for season={prefs.season} — notes: {r.notes[:5]}"
+                    f"[ai.service] Season mismatch: '{r.name}' "
+                    f"note_score={note_sc:.1f} name_score={name_sc:.1f} "
+                    f"total={total_sc:.1f} season={prefs.season}"
                 )
-        # Weight: each season_score point = 6 match_score points for re-ranking.
-        # This is strong enough to push a clear mismatch (score ≈ -3) below a
-        # season-appropriate fragrance (score ≈ 0) even if Claude rated it higher.
         results.sort(
-            key=lambda r: r.match_score + _season_score(r.notes, prefs.season) * 6,
+            key=lambda r: (
+                r.match_score
+                + (_season_score(r.notes, prefs.season) + _name_season_score(r.name, prefs.season)) * 6
+            ),
             reverse=True,
         )
 
