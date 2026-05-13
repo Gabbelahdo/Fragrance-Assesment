@@ -265,9 +265,8 @@ def _build_user_message(
     # Promote to P4 so it overrides generic note matching.
     categories_selected = sum([prefs.prefer_niche, prefs.prefer_designer, prefs.prefer_dupe])
     single_category = categories_selected == 1
-    dupe_only     = prefs.prefer_dupe     and not prefs.prefer_niche and not prefs.prefer_designer
-    niche_only    = prefs.prefer_niche    and not prefs.prefer_designer and not prefs.prefer_dupe
-    designer_only = prefs.prefer_designer and not prefs.prefer_niche and not prefs.prefer_dupe
+    dupe_only  = prefs.prefer_dupe     and not prefs.prefer_niche and not prefs.prefer_designer
+    niche_only = prefs.prefer_niche    and not prefs.prefer_designer and not prefs.prefer_dupe
     liked_frags = prefs.liked_fragrances_text.strip()
 
     if single_category and liked_frags:
@@ -287,7 +286,7 @@ def _build_user_message(
             f"  The user likes the scent profile of: {liked_frags}",
             f"  Find {target_desc} (type={category_label}) that share the same scent DNA.",
             f"  The liked fragrances are the SCENT REFERENCE — the category ({category_label}) is",
-            f"  the TIER to search in. Do not recommend the liked fragrances themselves.",
+            "  the TIER to search in. Do not recommend the liked fragrances themselves.",
             f"  Do not pick generic popular {category_label} fragrances — match the specific",
             f"  scent character of {liked_frags}.",
             "  (This already covers P6 — do not repeat liked fragrances below.)",
@@ -367,7 +366,7 @@ def _build_user_message(
         # Merge with user notes — description inference adds extra signal
         all_notes = list(dict.fromkeys(notes + desc_notes))  # dedupe, preserve order
         lines_idx = next(
-            (i for i, l in enumerate(lines) if l.startswith("[NOTES")), None
+            (i for i, line in enumerate(lines) if line.startswith("[NOTES")), None
         )
         if lines_idx is not None:
             lines[lines_idx] = f"[NOTES — supporting detail] {', '.join(all_notes)}"
@@ -499,7 +498,6 @@ _NOTE_SEASON: dict[str, dict[str, float]] = {
     "agarwood":        {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
     "agarwood (oud)":  {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
     "oud wood":        {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
-    "tonka bean":      {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
     "tonka beans":     {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
     "sea water":       {"summer": 1.5, "spring": 0.3, "winter": -1.0},
     "salt":            {"summer": 1.2, "spring": 0.2, "winter": -0.5},
