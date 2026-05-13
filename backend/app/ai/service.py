@@ -198,12 +198,19 @@ _SEASON_LABEL = {
 
 # ── Prompt builder ────────────────────────────────────────────────────────────
 
-def _build_user_message(prefs: AssessmentPreferences) -> str:
+def _build_user_message(
+    prefs: AssessmentPreferences,
+    ref_dna: dict[str, list[str]] | None = None,
+) -> str:
     """
     Build the user message following the exact priority hierarchy defined in the
     system prompt: Budget → Category → Season → Description → Gender →
     Liked Fragrances → Liked Brands.
     Presenting data in priority order helps Claude weight them correctly.
+
+    ref_dna: optional dict {fragrance_name: [notes]} pre-fetched from Fragella.
+    When provided, it is injected right after the description/scent-target block
+    as a factual note-DNA anchor so Claude targets the correct scent profile.
     """
     categories: list[str] = []
     if prefs.prefer_niche:
@@ -293,6 +300,21 @@ def _build_user_message(prefs: AssessmentPreferences) -> str:
             "  named, target that exact scent DNA. Do not substitute a generic popular match.",
         ]
 
+    # ── DNA fingerprint block (injected when Fragella note data is available) ──
+    # Provides factual note anchors for any reference fragrances so Claude
+    # targets the correct scent profile rather than relying on memory alone.
+    if ref_dna:
+        lines += ["", "[SCENT-DNA REFERENCE — verified note data from Fragella]"]
+        for frag_name, notes_list in ref_dna.items():
+            notes_str_dna = ", ".join(notes_list)
+            lines += [
+                f"  {frag_name}: {notes_str_dna}",
+            ]
+        lines += [
+            "  → Your recommendations MUST match this note profile.",
+            "  → Do NOT substitute a different popular fragrance that lacks these notes.",
+        ]
+
     # ── P5: GENDER ────────────────────────────────────────────────────────────
     lines += [
         "",
@@ -367,6 +389,171 @@ def _is_blocked_brand(brand: str) -> bool:
     return brand.strip().lower() in _NON_FRAGRANCE_BRANDS
 
 
+# ── Note → Season compatibility weights ──────────────────────────────────────
+# Maps individual note names (lower-case) to per-season scores.
+# Positive = note fits the season; negative = note conflicts.
+# Missing entry → 0 (neutral).  "all_year" is never scored.
+_NOTE_SEASON: dict[str, dict[str, float]] = {
+    # ── Fresh / citrus ────────────────────────────────────────────────────────
+    "bergamot":        {"summer": 1.2, "spring": 0.8, "autumn": -0.1, "winter": -0.5},
+    "lemon":           {"summer": 1.2, "spring": 0.7, "winter": -0.5},
+    "lime":            {"summer": 1.2, "spring": 0.7, "winter": -0.5},
+    "grapefruit":      {"summer": 1.2, "spring": 0.7, "winter": -0.4},
+    "orange":          {"summer": 0.8, "spring": 0.6},
+    "mandarin":        {"summer": 0.7, "spring": 0.5},
+    "tangerine":       {"summer": 0.7, "spring": 0.5},
+    "yuzu":            {"summer": 1.0, "spring": 0.6},
+    "citrus":          {"summer": 1.2, "spring": 0.8, "winter": -0.4},
+    # ── Aquatic / marine ──────────────────────────────────────────────────────
+    "marine":          {"summer": 1.8, "spring": 0.4, "autumn": -0.6, "winter": -1.8},
+    "aquatic":         {"summer": 1.8, "spring": 0.4, "autumn": -0.6, "winter": -1.8},
+    "sea salt":        {"summer": 1.5, "spring": 0.2, "winter": -1.2},
+    "ozonic":          {"summer": 1.5, "spring": 0.3, "winter": -1.2},
+    "water":           {"summer": 1.0, "spring": 0.4, "winter": -0.5},
+    "cucumber":        {"summer": 1.2, "spring": 0.5, "winter": -0.5},
+    "watermelon":      {"summer": 1.3, "spring": 0.3, "winter": -0.5},
+    "melon":           {"summer": 1.0, "spring": 0.4},
+    # ── Light spring florals ──────────────────────────────────────────────────
+    "peony":           {"spring": 1.5, "summer": 0.7, "autumn": -0.3, "winter": -0.5},
+    "cherry blossom":  {"spring": 1.5, "summer": 0.4, "autumn": -0.5, "winter": -0.8},
+    "magnolia":        {"spring": 1.3, "summer": 0.5, "winter": -0.3},
+    "lily of the valley": {"spring": 1.5, "summer": 0.5, "autumn": -0.3, "winter": -0.5},
+    "freesia":         {"spring": 1.2, "summer": 0.6, "winter": -0.3},
+    "lilac":           {"spring": 1.3, "summer": 0.4, "winter": -0.3},
+    "hyacinth":        {"spring": 1.2, "summer": 0.3, "winter": -0.3},
+    "iris":            {"spring": 0.8, "autumn": 0.4},
+    # ── Green / fresh ─────────────────────────────────────────────────────────
+    "green":           {"spring": 1.0, "summer": 0.5},
+    "grass":           {"spring": 1.0, "summer": 0.5},
+    "green tea":       {"summer": 0.8, "spring": 0.7},
+    "mint":            {"summer": 0.8, "spring": 0.6, "winter": -0.2},
+    # ── Heavy warm / winter ───────────────────────────────────────────────────
+    "oud":             {"winter": 1.8, "autumn": 0.9, "spring": -0.9, "summer": -2.0},
+    "incense":         {"winter": 1.4, "autumn": 0.8, "summer": -1.2},
+    "frankincense":    {"winter": 1.4, "autumn": 0.8, "summer": -1.0},
+    "myrrh":           {"winter": 1.2, "autumn": 0.6, "summer": -0.9},
+    "benzoin":         {"winter": 1.0, "autumn": 0.5, "summer": -0.8},
+    "labdanum":        {"winter": 0.9, "autumn": 0.6, "summer": -0.7},
+    "tobacco":         {"winter": 1.4, "autumn": 1.0, "spring": -0.5, "summer": -1.5},
+    "leather":         {"winter": 0.9, "autumn": 0.8, "spring": -0.3, "summer": -1.0},
+    "smoke":           {"winter": 1.1, "autumn": 0.7, "summer": -1.1},
+    "birch":           {"autumn": 0.9, "winter": 0.7, "summer": -0.8},
+    "rum":             {"winter": 1.0, "autumn": 0.7, "summer": -0.8},
+    "whisky":          {"winter": 1.0, "autumn": 0.8, "summer": -0.9},
+    # ── Gourmand / sweet ──────────────────────────────────────────────────────
+    "vanilla":         {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
+    "tonka":           {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
+    "tonka bean":      {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
+    "coumarin":        {"autumn": 0.7, "winter": 0.7, "summer": -0.3},
+    "caramel":         {"winter": 0.8, "autumn": 0.7, "summer": -0.5},
+    "chocolate":       {"winter": 0.8, "autumn": 0.6, "summer": -0.5},
+    # ── Spices ────────────────────────────────────────────────────────────────
+    "cinnamon":        {"winter": 0.9, "autumn": 1.0, "summer": -0.8},
+    "cardamom":        {"winter": 0.8, "autumn": 0.8, "summer": -0.5},
+    "clove":           {"winter": 0.9, "autumn": 1.0, "summer": -0.8},
+    "nutmeg":          {"autumn": 0.9, "winter": 0.7, "summer": -0.5},
+    "saffron":         {"winter": 0.8, "autumn": 0.7, "summer": -0.5},
+    "black pepper":    {"autumn": 0.6, "winter": 0.5, "summer": -0.2},
+    # ── Versatile (low weights, no strong conflict) ───────────────────────────
+    "rose":            {"spring": 0.6, "summer": 0.3, "autumn": 0.2},
+    "jasmine":         {"spring": 0.5, "summer": 0.5, "autumn": 0.2},
+    "lavender":        {"spring": 0.5, "summer": 0.4, "autumn": 0.3, "winter": 0.2},
+    "neroli":          {"spring": 0.6, "summer": 0.8},
+    "geranium":        {"spring": 0.5, "summer": 0.4},
+    "ylang-ylang":     {"summer": 0.4, "spring": 0.4},
+    "sandalwood":      {"autumn": 0.5, "winter": 0.5},
+    "vetiver":         {"summer": 0.3, "autumn": 0.6, "winter": 0.4},
+    "cedar":           {"autumn": 0.4, "winter": 0.3},
+    "patchouli":       {"autumn": 0.6, "winter": 0.5, "summer": -0.4},
+    "amber":           {"winter": 0.7, "autumn": 0.6, "summer": -0.3},
+    "ambergris":       {"autumn": 0.4, "winter": 0.4},
+    "musk":            {},  # neutral — no season preference
+    "white musk":      {},
+    "woody":           {"autumn": 0.3, "winter": 0.2},
+}
+
+
+def _season_score(notes: list[str], season: str) -> float:
+    """
+    Return a season-alignment score for a fragrance given its actual notes.
+    Positive = good fit, negative = poor fit.
+    Returns 0.0 for 'all_year' (no season penalty applied).
+    """
+    if season == "all_year" or not notes:
+        return 0.0
+    return sum(
+        _NOTE_SEASON.get(n.strip().lower(), {}).get(season, 0.0)
+        for n in notes
+    )
+
+
+# ── Reference fragrance DNA helpers ──────────────────────────────────────────
+
+# Regex patterns to extract a reference fragrance name from free text.
+# Matches: "similar to X", "like X", "clone of X", "dupe of X", etc.
+# Also handles Swedish: "liknande X", "kopia av X", "inspirerad av X".
+_REFERENCE_PATTERNS: list[re.Pattern] = [
+    re.compile(r"similar to\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"\blike\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"clone of\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"dupe of\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"inspired by\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"version of\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"reminiscent of\s+([A-Z][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"liknande\s+([A-Za-zÅÄÖåäö][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"kopia av\s+([A-Za-zÅÄÖåäö][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"inspirerad av\s+([A-Za-zÅÄÖåäö][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"påminner om\s+([A-Za-zÅÄÖåäö][^\n,.(]{3,60}?)(?:\s*[,.(]|$)", re.IGNORECASE),
+]
+
+
+def _extract_reference_names(description: str, liked_frags: str) -> list[str]:
+    """
+    Extract fragrance reference names from description text and liked_fragrances.
+    - liked_fragrances_text is already a comma-separated clean list.
+    - description_text is free text; we scan for common "similar to X" patterns.
+    Returns a deduplicated list of candidate fragrance names (max 4).
+    """
+    seen: set[str] = set()
+    names: list[str] = []
+
+    def _add(raw: str) -> None:
+        cleaned = raw.strip().rstrip(".,;:!?").strip()
+        if cleaned and cleaned.lower() not in seen and len(cleaned) > 2:
+            seen.add(cleaned.lower())
+            names.append(cleaned)
+
+    # 1. liked_fragrances (already structured)
+    for frag in liked_frags.split(","):
+        _add(frag)
+
+    # 2. description — scan for reference patterns
+    for pattern in _REFERENCE_PATTERNS:
+        for m in pattern.finditer(description):
+            _add(m.group(1))
+
+    return names[:4]  # cap at 4 to limit Fragella calls
+
+
+async def _fetch_reference_dna(names: list[str]) -> dict[str, list[str]]:
+    """
+    Look up each reference fragrance in Fragella and return a dict of
+    {fragrance_name: [note, note, ...]} for any that have note data.
+    Results are cached by fragrance_service so repeated calls are free.
+    """
+    dna: dict[str, list[str]] = {}
+    for name in names:
+        try:
+            data = await fragrance_service.lookup_fragrance(name)
+            if data and data.get("notes"):
+                dna[name] = data["notes"][:15]  # keep top 15 notes
+        except Exception as exc:
+            print(f"[ai.service] DNA lookup failed for '{name}': {exc}")
+    if dna:
+        print(f"[ai.service] Reference DNA fetched for: {list(dna.keys())}")
+    return dna
+
+
 # ── JSON extraction ───────────────────────────────────────────────────────────
 
 def _extract_json(text: str) -> dict:
@@ -396,7 +583,8 @@ def _extract_json(text: str) -> dict:
 #   v8 — scent-target brief generalised to all 3 single-category + liked frags combos
 #   v9 — brand tier reference added (Tom Ford/Mancera never dupe); stronger hallucination guard
 #   v10 — post-Claude non-fragrance brand blocklist (Pure Cosmetics repeat offender)
-_CACHE_VERSION = 10
+#   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
+_CACHE_VERSION = 11
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
@@ -451,6 +639,15 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
     model = _pick_model(prefs)
     print(f"[ai.service] Using model: {model}")
 
+    # ── Pre-fetch Fragella note DNA for reference fragrances ──────────────────
+    # Done BEFORE the Claude call so the note anchors can be injected into the
+    # prompt — this is the core fix for BB-03 (Le Male → Aventus substitution).
+    ref_names = _extract_reference_names(
+        prefs.description_text,
+        prefs.liked_fragrances_text,
+    )
+    ref_dna = await _fetch_reference_dna(ref_names) if ref_names else {}
+
     client = anthropic.AsyncAnthropic(api_key=settings.ai_api_key)
 
     # Adaptive thinking is Opus-only — Haiku doesn't support it
@@ -467,7 +664,7 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
                 "cache_control": {"type": "ephemeral"},  # cache for 5 min per model
             }
         ],
-        messages=[{"role": "user", "content": _build_user_message(prefs)}],
+        messages=[{"role": "user", "content": _build_user_message(prefs, ref_dna)}],
     ) as stream:
         message = await stream.get_final_message()
 
@@ -541,6 +738,26 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
                 price_range = price_range,
                 reason      = suggestion.reason,
             )
+        )
+
+    # ── Note→Season re-ranking (BB-01 fix) ───────────────────────────────────
+    # Re-rank results using verified Fragella notes to correct any season mismatches
+    # that slipped past Claude's prompt constraint.  The season score adjusts the
+    # effective rank; we never drop results (UI expects 4–5).
+    if prefs.season != "all_year" and results:
+        for r in results:
+            sc = _season_score(r.notes, prefs.season)
+            if sc < -1.5:
+                print(
+                    f"[ai.service] Season mismatch: '{r.name}' score={sc:.1f} "
+                    f"for season={prefs.season} — notes: {r.notes[:5]}"
+                )
+        # Weight: each season_score point = 6 match_score points for re-ranking.
+        # This is strong enough to push a clear mismatch (score ≈ -3) below a
+        # season-appropriate fragrance (score ≈ 0) even if Claude rated it higher.
+        results.sort(
+            key=lambda r: r.match_score + _season_score(r.notes, prefs.season) * 6,
+            reverse=True,
         )
 
     return results
