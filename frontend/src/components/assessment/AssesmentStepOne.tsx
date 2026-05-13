@@ -145,6 +145,7 @@ export function AssesmentStepOne({
                   );
                 })}
               </div>
+              {errors.season && <p className={s.fieldError}>{errors.season.message}</p>}
             </div>
 
             {/* Fragrance gender — colorful tiles */}
@@ -241,7 +242,10 @@ export function AssesmentStepOne({
 
             {/* Notes — predefined chips + custom dropdown */}
             <div className={s.field}>
-              <label className={s.fieldLabel}>Favoritnoter</label>
+              <label className={s.fieldLabel}>
+                Favoritnoter
+                <span className={s.optionalBadge}>valfritt</span>
+              </label>
               <p className={s.helperText}>Välj bland färdiga noter eller sök efter fler.</p>
 
               {/* Quick-click predefined note chips */}

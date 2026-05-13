@@ -10,19 +10,16 @@ export const step1Schema = z
   .object({
     budgetMin: budgetField(),
     budgetMax: budgetField(),
-    season: z.enum(["spring", "summer", "autumn", "winter", "all_year"]),
-    fragranceGender: z.enum(["men", "women", "unisex"]),
+    season: z.enum(["spring", "summer", "autumn", "winter", "all_year"], {
+      error: "Välj en säsong",
+    }),
+    fragranceGender: z.enum(["men", "women", "unisex"], {
+      error: "Välj kön",
+    }),
     descriptionText: z.string(),
     likedBrandsText: z.string(),
     likedFragrancesText: z.string(),
-    notesText: z.string().refine(
-      (value) =>
-        value
-          .split(",")
-          .map((note) => note.trim())
-          .filter(Boolean).length > 0,
-      "Välj minst 1 not"
-    ),
+    notesText: z.string(),
     preferNiche: z.boolean(),
     preferDesigner: z.boolean(),
     preferDupe: z.boolean(),

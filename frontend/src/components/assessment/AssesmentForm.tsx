@@ -62,7 +62,6 @@ export function AssessmentForm() {
     resolver: zodResolver(step1Schema),
     defaultValues: {
       budgetMin: 0, budgetMax: 10000,
-      season: "all_year", fragranceGender: "unisex",
       notesText: "", descriptionText: "",
       likedBrandsText: "", likedFragrancesText: "",
       preferNiche: false, preferDesigner: false, preferDupe: false,
