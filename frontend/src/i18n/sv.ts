@@ -58,6 +58,8 @@ export const sv: Translations = {
   errTooMany: "För många sökningar",
   errServer: "Servern svarade inte som förväntat. Försök igen om en stund.",
   errConnect: "Kontrollera att backend körs på localhost:8000 och försök igen.",
+  errTitle: "Något gick fel",
+  errConnectTitle: "Kunde inte ansluta",
   fbWantHelp: "Vill du hjälpa oss förbättras?",
   fbShort: "Svara på ett kort formulär — tar under en minut.",
   fbYes: "Ja, gärna",

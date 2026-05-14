@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertTriangle, Clock, RotateCcw, Sparkles } from "lucide-react";
@@ -6,7 +6,7 @@ import { AssesmentStepOne } from "./AssesmentStepOne";
 import { RecommendationResults } from "./RecommendationResults";
 import { useChipInput } from "./hooks/useChipInput";
 import { useNoteChips } from "./hooks/useNoteChips";
-import { step1Schema } from "./validation";
+import { buildStep1Schema } from "./validation";
 import type { Step1Values } from "./validation";
 import type { FragranceRecommendation } from "./types";
 import { AssessmentError, submitAssessment } from "../../services/fragranceApi";
@@ -51,6 +51,8 @@ export function AssessmentForm() {
     handleKeyDown: handleLikedFragranceKeyDown,
   } = useChipInput();
 
+  const step1Schema = useMemo(() => buildStep1Schema(t), [t]);
+
   const step1Form = useForm<Step1Values>({
     resolver: zodResolver(step1Schema),
     defaultValues: {
@@ -88,6 +90,10 @@ export function AssessmentForm() {
   }, [view]);
 
   const onStep1Submit = async (step1Data: Step1Values) => {
+    if (!step1Data.preferNiche && !step1Data.preferDesigner && !step1Data.preferDupe) {
+      step1Form.setError("preferNiche", { type: "manual", message: t.errCategory });
+      return;
+    }
     setView("loading-results");
     try {
       const results = await submitAssessment(step1Data);
@@ -98,10 +104,10 @@ export function AssessmentForm() {
         if (err.status === 429) {
           setErrorInfo({ title: t.errTooMany, message: err.detail });
         } else {
-          setErrorInfo({ title: "Något gick fel", message: t.errServer });
+          setErrorInfo({ title: t.errTitle, message: t.errServer });
         }
       } else {
-        setErrorInfo({ title: "Kunde inte ansluta", message: t.errConnect });
+        setErrorInfo({ title: t.errConnectTitle, message: t.errConnect });
       }
       setView("error");
     }
@@ -136,7 +142,7 @@ export function AssessmentForm() {
       <div className={s.errorPage}>
         <div className={s.errorContent}>
           <AlertTriangle size={52} strokeWidth={1.25} className={s.errorIcon} />
-          <p className={s.errorTitle}>{errorInfo?.title ?? "Något gick fel"}</p>
+          <p className={s.errorTitle}>{errorInfo?.title ?? t.errTitle}</p>
           <p className={s.errorMessage}>{errorInfo?.message}</p>
           <div className={s.errorActions}>
             <button onClick={() => setView("step1")} className={s.retryButton}>

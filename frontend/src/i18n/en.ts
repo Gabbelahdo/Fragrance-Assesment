@@ -58,6 +58,8 @@ export const en: Translations = {
   errTooMany: "Too many searches",
   errServer: "The server did not respond as expected. Please try again shortly.",
   errConnect: "Make sure the backend is running on localhost:8000 and try again.",
+  errTitle: "Something went wrong",
+  errConnectTitle: "Could not connect",
   fbWantHelp: "Would you like to help us improve?",
   fbShort: "Answer a short form — takes less than a minute.",
   fbYes: "Yes, sure",

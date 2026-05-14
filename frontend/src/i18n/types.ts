@@ -71,6 +71,8 @@ export type Translations = {
   errTooMany: string;
   errServer: string;
   errConnect: string;
+  errTitle: string;
+  errConnectTitle: string;
   // Feedback
   fbWantHelp: string;
   fbShort: string;
