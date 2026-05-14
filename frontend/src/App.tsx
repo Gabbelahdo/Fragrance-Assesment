@@ -1,11 +1,11 @@
 import { LangProvider } from './i18n';
-import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { Navbar } from './components/Navbar';
 import AssessmentForm from './components/assessment/AssessmentForm';
 
 function App() {
   return (
     <LangProvider>
-      <LanguageSwitcher />
+      <Navbar />
       <AssessmentForm />
     </LangProvider>
   );

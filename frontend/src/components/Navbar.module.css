@@ -1,0 +1,125 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.25rem;
+  height: 52px;
+  background: rgba(8, 4, 20, 0.90);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+/* ── Logo ──────────────────────────────────────────────── */
+
+.logo {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  user-select: none;
+}
+
+/* ── Language button ───────────────────────────────────── */
+
+.langWrapper {
+  position: relative;
+}
+
+.langBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.3rem 0.65rem;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.82rem;
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.langBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.chevron {
+  opacity: 0.45;
+  transition: transform 0.18s ease;
+  flex-shrink: 0;
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+  opacity: 0.7;
+}
+
+/* ── Dropdown ──────────────────────────────────────────── */
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 148px;
+  background: rgba(12, 6, 30, 0.97);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  animation: dropIn 0.14s ease;
+}
+
+@keyframes dropIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.85rem;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.option + .option {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.option:hover {
+  background: rgba(168, 85, 247, 0.15);
+  color: #fff;
+}
+
+.optionActive {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* ── Flag image ────────────────────────────────────────── */
+
+.flag {
+  width: 22px;
+  height: 15px;
+  object-fit: cover;
+  border-radius: 2px;
+  display: block;
+  flex-shrink: 0;
+}
