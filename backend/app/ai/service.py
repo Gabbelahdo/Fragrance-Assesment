@@ -25,6 +25,7 @@ from app.ai.models import AIFragranceSuggestion, AssessmentPreferences, Recommen
 from app.core.config import settings
 from app.core.database import get_db
 from app.fragrances import service as fragrance_service
+from app.parfumo import service as parfumo_service
 from app.users import service as user_service
 
 # ── Model selection ───────────────────────────────────────────────────────────
@@ -724,6 +725,144 @@ def _extract_json(text: str) -> dict:
     raise ValueError(f"Could not parse JSON from Claude response:\n{text[:500]}")
 
 
+# ── Parfumo season validation ────────────────────────────────────────────────
+
+# If the selected season has fewer than this % of community votes → flag parfym
+_PARFUMO_SEASON_MIN_PCT = 20
+
+
+def _parfumo_season_score(votes: dict[str, int] | None, season: str) -> float:
+    """
+    Convert Parfumo community votes to a re-ranking signal.
+
+    >50% for selected season → strong positive  (+2.0)
+    30–50%                  → weak positive     (+0.5)
+    15–30%                  → neutral           ( 0.0)
+    <15%                    → negative          (-2.0)
+    No data                 → neutral           ( 0.0)
+    """
+    if not votes or season == "all_year":
+        return 0.0
+    pct = votes.get(season, 0)
+    if pct >= 50:
+        return 2.0
+    elif pct >= 30:
+        return 0.5
+    elif pct >= 15:
+        return 0.0
+    else:
+        return -2.0
+
+
+async def _replace_season_mismatches(
+    results: list[RecommendationResult],
+    prefs: AssessmentPreferences,
+    parfumo_votes: list[dict[str, int] | None],
+) -> list[RecommendationResult]:
+    """
+    Ask Claude (Haiku) to replace any fragrance where Parfumo community
+    votes show <_PARFUMO_SEASON_MIN_PCT% for the selected season.
+    Falls back to the original list on any error.
+    """
+    season = prefs.season
+    if season == "all_year":
+        return results
+
+    bad: list[tuple[int, RecommendationResult, dict]] = []
+    for i, (r, votes) in enumerate(zip(results, parfumo_votes)):
+        if votes is None:
+            continue
+        pct = votes.get(season, 0)
+        if pct < _PARFUMO_SEASON_MIN_PCT:
+            bad.append((i, r, votes))
+            print(
+                f"[ai.service] Parfumo season mismatch: '{r.name}' "
+                f"only {pct}% for {season} — queuing for replacement."
+            )
+
+    if not bad:
+        return results
+
+    bad_indices = {idx for idx, _, _ in bad}
+    good_names = [r.name for i, r in enumerate(results) if i not in bad_indices]
+
+    bad_lines = "\n".join(
+        f"- {r.name} by {r.brand} "
+        f"(Parfumo votes: spring={v.get('spring', 0)}% "
+        f"summer={v.get('summer', 0)}% "
+        f"autumn={v.get('autumn', 0)}% "
+        f"winter={v.get('winter', 0)}%; "
+        f"selected season '{season}' has only {v.get(season, 0)}%)"
+        for _, r, v in bad
+    )
+
+    prompt = f"""These fragrances were recommended for {season} but Parfumo community \
+data shows they are poor seasonal fits:
+
+{bad_lines}
+
+Already accepted fragrances (do NOT repeat): {", ".join(good_names) or "none"}
+
+For each fragrance above, suggest exactly ONE replacement that:
+1. Fits {season} well (aim for >40% Parfumo community votes for {season})
+2. Stays within the same category (niche/designer/dupe) as the fragrance it replaces
+3. Fits budget {prefs.budget_min}–{prefs.budget_max} SEK
+4. Matches gender: {prefs.fragrance_gender}
+5. Is verifiable on Fragrantica or Basenotes
+
+Respond with ONLY valid JSON — no prose, no markdown:
+{{
+  "replacements": [
+    {{
+      "replaces": "Exact name of the fragrance being replaced",
+      "name": "Replacement Fragrance Name",
+      "brand": "Brand Name",
+      "type": "niche|designer|dupe",
+      "price_range": "X–Y SEK",
+      "match_score": 80,
+      "reason": "1-2 sentences explaining the seasonal fit and why this matches."
+    }}
+  ]
+}}"""
+
+    try:
+        client = anthropic.AsyncAnthropic(api_key=settings.ai_api_key)
+        resp = await client.messages.create(
+            model=_MODEL_HAIKU,
+            max_tokens=1024,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = next((b.text for b in resp.content if b.type == "text"), None)
+        if not text:
+            return results
+
+        data = _extract_json(text)
+        for replacement in data.get("replacements", []):
+            for idx, r, _ in bad:
+                if r.name.lower() == replacement.get("replaces", "").lower():
+                    print(
+                        f"[ai.service] Replacing '{r.name}' → "
+                        f"'{replacement['name']}' (Parfumo season fix)"
+                    )
+                    results[idx] = RecommendationResult(
+                        id=f"{idx}-{replacement['name']}",
+                        name=replacement["name"],
+                        brand=replacement["brand"],
+                        description="",
+                        notes=[],
+                        image_url=None,
+                        match_score=replacement.get("match_score", 75),
+                        type=replacement["type"],
+                        price_range=replacement["price_range"],
+                        reason=replacement["reason"],
+                    )
+                    break
+    except Exception as exc:
+        print(f"[ai.service] Parfumo replacement error: {exc}")
+
+    return results
+
+
 # ── Recommendation cache ──────────────────────────────────────────────────────
 
 # Increment this to invalidate ALL previously cached recommendations.
@@ -898,12 +1037,31 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
             )
         )
 
-    # ── Note→Season re-ranking (BB-01 fix) ───────────────────────────────────
-    # Re-rank results using two signals:
-    #   1. _season_score  — Fragella note weights (now with substring matching)
-    #   2. _name_season_score — name-keyword heuristic (catches "Oud" in name
-    #      even when Fragella has no note data or notes partially offset the penalty)
-    # Weight: each combined score point = 6 effective match_score points.
+    # ── Parfumo season validation ─────────────────────────────────────────────
+    # Fetch community season votes in parallel for all results.
+    # Runs only when a specific season is selected (not all_year).
+    # Each fetch has a 6 s timeout; failures return None and are skipped.
+    parfumo_votes: list[dict[str, int] | None]
+    if prefs.season != "all_year" and results:
+        import asyncio as _asyncio
+        parfumo_votes = list(await _asyncio.gather(*[
+            parfumo_service.get_season_votes(r.name, r.brand)
+            for r in results
+        ]))
+        # Ask Claude (Haiku) to replace fragrances with poor season fit
+        results = await _replace_season_mismatches(results, prefs, parfumo_votes)
+        # Refresh votes for any newly swapped-in fragrances
+        parfumo_votes = list(await _asyncio.gather(*[
+            parfumo_service.get_season_votes(r.name, r.brand)
+            for r in results
+        ]))
+    else:
+        parfumo_votes = [None] * len(results)
+
+    # ── Note→Season re-ranking (three signals combined) ───────────────────────
+    # Signal 1: _season_score      — Fragella note weights
+    # Signal 2: _name_season_score — name-keyword heuristic
+    # Signal 3: _parfumo_season_score — Parfumo community votes (highest weight)
     if prefs.season != "all_year" and results:
         for r in results:
             note_sc = _season_score(r.notes, prefs.season)
@@ -915,13 +1073,18 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
                     f"note_score={note_sc:.1f} name_score={name_sc:.1f} "
                     f"total={total_sc:.1f} season={prefs.season}"
                 )
-        results.sort(
-            key=lambda r: (
+
+        def _rank_key(pair: tuple[RecommendationResult, dict | None]) -> float:
+            r, votes = pair
+            return (
                 r.match_score
-                + (_season_score(r.notes, prefs.season) + _name_season_score(r.name, prefs.season)) * 6
-            ),
-            reverse=True,
-        )
+                + (_season_score(r.notes, prefs.season)
+                   + _name_season_score(r.name, prefs.season)) * 6
+                + _parfumo_season_score(votes, prefs.season) * 8
+            )
+
+        paired = sorted(zip(results, parfumo_votes), key=_rank_key, reverse=True)
+        results = [r for r, _ in paired]
 
     return results
 
