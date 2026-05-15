@@ -122,13 +122,23 @@ use season differs from the selected one:
 - Autumn → woody, spicy, warm but not oppressive. No pure summer aquatics.
 - All seasons → versatile fragrances only.
 
+SEASON NOTE EXCLUSIONS — when a specific season is selected, exclude any
+fragrance where the following are PRIMARY or DOMINANT notes:
+- Summer selected → EXCLUDE: vanilla, amber, cardamom, oud, leather, tobacco,
+  incense, patchouli, heavy resins. These are autumn/winter signatures.
+- Winter selected → EXCLUDE: marine, aquatic, cucumber, melon, ozonic notes.
+- Spring selected → EXCLUDE: oud, heavy tobacco, incense, dark leather.
+- Autumn selected → EXCLUDE: strong marine/aquatic, pure citrus solos.
+
 ⚠ POPULARITY BIAS WARNING: Do NOT default to a brand's most popular or
 best-selling fragrance if it does not fit the season. A fragrance being
-"famous" or "highly rated" never overrides the season constraint.
-Example: if summer is selected and the user mentions Afnan, do NOT recommend
-Afnan 9PM (a heavy oriental) — recommend Afnan 9AM Dive or similar fresh
-options instead. Always ask: "Does this fragrance actually smell like this
-season?" If not, pick a lesser-known but seasonally correct alternative.
+"famous", "iconic", or "highly rated" never overrides the season constraint.
+Examples of what NOT to do:
+- Summer + Afnan → do NOT recommend Afnan 9PM (heavy oriental)
+- Summer + De Marly → do NOT recommend Pegasus Exclusif or Layton (vanilla/amber heavy)
+- Summer + De Marly → DO recommend Greenley, Sedley, Galloway, Darby instead
+Always ask: "Does this fragrance actually smell like this season?"
+If not, pick a lesser-known but seasonally correct alternative.
 
 ══════════════════════════════════════════════════════════════════
 PRIORITY 4 — DESCRIPTION (user's stated intent)
@@ -971,7 +981,7 @@ Respond with ONLY valid JSON — no prose, no markdown:
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
 #   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
 #          name-based season heuristic; description→implicit notes injection
-_CACHE_VERSION = 17
+_CACHE_VERSION = 18
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
@@ -1166,10 +1176,16 @@ async def _call_claude_and_enrich(prefs: AssessmentPreferences) -> list[Recommen
 
         def _rank_key(pair: tuple[RecommendationResult, dict | None]) -> float:
             r, votes = pair
+            note_sc = _season_score(r.notes, prefs.season)
+            name_sc = _name_season_score(r.name, prefs.season)
+            combined_sc = note_sc + name_sc
+            # Asymmetric multiplier: mismatches are penalised harder than
+            # good matches are rewarded — prevents popularity bias overriding
+            # a clear season penalty (e.g. Pegasus Exclusif for summer).
+            note_weight = 10 if combined_sc < 0 else 6
             return (
                 r.match_score
-                + (_season_score(r.notes, prefs.season)
-                   + _name_season_score(r.name, prefs.season)) * 6
+                + combined_sc * note_weight
                 + _parfumo_season_score(votes, prefs.season) * 8
             )
 
