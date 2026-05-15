@@ -351,14 +351,32 @@ def _build_user_message(
         ]
 
     # ── P7: LIKED BRANDS ──────────────────────────────────────────────────────
+    # Detect "brand-exclusive" intent: if ANY liked brand is mentioned in the
+    # description, the user clearly wants ALL results from that brand.
+    # Promote to a hard constraint so Claude doesn't dilute with other brands.
     if prefs.liked_brands_text.strip():
-        lines += [
-            "",
-            f"[P7 LIKED BRANDS — lowest priority] {prefs.liked_brands_text.strip()}",
-            "  Prefer fragrances from these brands, but only within allowed categories (P2).",
-            "  A liked designer brand cannot appear when only dupe is selected, etc.",
-            "  Aim for at least 2–3 recommendations from these brands when possible.",
-        ]
+        liked_brands_list = [b.strip() for b in prefs.liked_brands_text.split(",") if b.strip()]
+        desc_lower = prefs.description_text.lower()
+        exclusive_brands = [b for b in liked_brands_list if b.lower() in desc_lower]
+
+        if exclusive_brands:
+            exclusive_str = ", ".join(exclusive_brands)
+            lines += [
+                "",
+                f"[P2b BRAND — hard constraint] The user explicitly asked for fragrances from: {exclusive_str}",
+                f"  ALL 5 recommendations MUST come from {exclusive_str}.",
+                "  Do not include any other brand, even if it is a better seasonal or scent match.",
+                f"  Browse {exclusive_str}'s full catalogue and find the 5 best fits within the",
+                "  other constraints (budget, season, category, gender).",
+            ]
+        else:
+            lines += [
+                "",
+                f"[P7 LIKED BRANDS — lowest priority] {prefs.liked_brands_text.strip()}",
+                "  Prefer fragrances from these brands, but only within allowed categories (P2).",
+                "  A liked designer brand cannot appear when only dupe is selected, etc.",
+                "  Aim for at least 2–3 recommendations from these brands when possible.",
+            ]
 
     # ── Implicit notes from description keywords ──────────────────────────────
     # When the description contains freshness/scent-cluster keywords, inject
@@ -896,7 +914,7 @@ Respond with ONLY valid JSON — no prose, no markdown:
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
 #   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
 #          name-based season heuristic; description→implicit notes injection
-_CACHE_VERSION = 15
+_CACHE_VERSION = 16
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
