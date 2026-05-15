@@ -613,22 +613,38 @@ def _season_score(notes: list[str], season: str) -> float:
 # what notes Fragella returns (e.g. Badee Al OUD for summer = obvious mismatch).
 
 _NAME_SEASON_PENALTY: dict[str, dict[str, float]] = {
-    "oud":     {"summer": -3.0, "spring": -1.5},
-    "noir":    {"summer": -1.0},
-    "intense": {"summer": -0.5},
-    "extreme": {"summer": -0.5},
-    "inferno": {"summer": -0.8},
-    "winter":  {"summer": -2.0, "spring": -1.0},
-    "noel":    {"summer": -1.5, "spring": -0.5},
-    "nuit":    {"summer": -0.5},
-    "absolu":  {"summer": -0.3},
-    # Evening/night-coded names — typically heavy orientals
-    "9pm":     {"summer": -2.5, "spring": -1.0},
+    # ── Winter/heavy penalised for summer ─────────────────────────────────────
+    "oud":      {"summer": -3.0, "spring": -1.5},
+    "noir":     {"summer": -1.0},
+    "intense":  {"summer": -0.5},
+    "extreme":  {"summer": -0.5},
+    "inferno":  {"summer": -0.8},
+    "winter":   {"summer": -2.0, "spring": -1.0},
+    "noel":     {"summer": -1.5, "spring": -0.5},
+    "nuit":     {"summer": -0.5},
+    "absolu":   {"summer": -0.3},
+    "9pm":      {"summer": -2.5, "spring": -1.0},
     "midnight": {"summer": -1.5, "spring": -0.5},
-    "night":   {"summer": -1.0},
-    "evening": {"summer": -0.8},
-    "tobacco": {"summer": -1.5, "spring": -0.5},
-    "opium":   {"summer": -1.5, "spring": -0.5},
+    "night":    {"summer": -1.0},
+    "evening":  {"summer": -0.8},
+    "tobacco":  {"summer": -1.5, "spring": -0.5},
+    "opium":    {"summer": -1.5, "spring": -0.5},
+    # ── Summer/fresh boosted ──────────────────────────────────────────────────
+    # Positive values boost ranking for the matching season.
+    "riviera":  {"summer": 3.0, "spring": 1.0},
+    "dive":     {"summer": 2.5, "spring": 0.5},
+    "aqua":     {"summer": 2.0, "spring": 0.5},
+    "marine":   {"summer": 2.0},
+    "ocean":    {"summer": 2.0},
+    "beach":    {"summer": 2.0},
+    "9am":      {"summer": 2.0, "spring": 0.5},
+    "cool":     {"summer": 1.0, "spring": 0.5},
+    "fresh":    {"summer": 1.0, "spring": 0.5},
+    "holidays": {"summer": 1.5, "spring": 0.5},
+    "soleil":   {"summer": 2.0, "spring": 0.5},   # sun/solar in French
+    "summer":   {"summer": 3.0, "spring": 0.5},
+    "spring":   {"spring": 3.0, "summer": 0.5},
+    "garden":   {"spring": 1.5, "summer": 1.0},
 }
 
 
@@ -870,14 +886,26 @@ async def _replace_season_mismatches(
 
     bad: list[tuple[int, RecommendationResult, dict]] = []
     for i, (r, votes) in enumerate(zip(results, parfumo_votes)):
-        if votes is None:
-            continue
-        pct = votes.get(season, 0)
-        if pct < _PARFUMO_SEASON_MIN_PCT:
-            bad.append((i, r, votes))
+        note_sc = _season_score(r.notes, season)
+        name_sc = _name_season_score(r.name, season)
+        combined_sc = note_sc + name_sc
+
+        if votes is not None:
+            pct = votes.get(season, 0)
+            if pct < _PARFUMO_SEASON_MIN_PCT:
+                bad.append((i, r, votes))
+                print(
+                    f"[ai.service] Parfumo season mismatch: '{r.name}' "
+                    f"only {pct}% for {season} — queuing for replacement."
+                )
+        elif combined_sc < -1.5:
+            # Parfumo data unavailable but note+name score strongly negative —
+            # flag for replacement anyway so bad fragrances don't survive
+            # just because the scraper couldn't fetch their Parfumo page.
+            bad.append((i, r, {}))
             print(
-                f"[ai.service] Parfumo season mismatch: '{r.name}' "
-                f"only {pct}% for {season} — queuing for replacement."
+                f"[ai.service] Note/name season mismatch (no Parfumo data): "
+                f"'{r.name}' score={combined_sc:.1f} for {season} — queuing for replacement."
             )
 
     if not bad:
@@ -981,7 +1009,7 @@ Respond with ONLY valid JSON — no prose, no markdown:
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
 #   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
 #          name-based season heuristic; description→implicit notes injection
-_CACHE_VERSION = 18
+_CACHE_VERSION = 19
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
