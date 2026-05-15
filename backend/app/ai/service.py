@@ -416,8 +416,8 @@ def _is_blocked_brand(brand: str) -> bool:
 _NOTE_SEASON: dict[str, dict[str, float]] = {
     # ── Fresh / citrus ────────────────────────────────────────────────────────
     "bergamot":        {},  # top note — appears in all seasons, no seasonal opinion
-    "lemon":           {"summer": 1.2, "spring": 0.7, "winter": -0.5},
-    "lime":            {"summer": 1.2, "spring": 0.7, "winter": -0.5},
+    "lemon":           {},  # top note — appears across all seasons
+    "lime":            {},  # top note — appears across all seasons
     "grapefruit":      {"summer": 1.2, "spring": 0.7, "winter": -0.4},
     "orange":          {"summer": 0.8, "spring": 0.6},
     "mandarin":        {"summer": 0.7, "spring": 0.5},
@@ -881,7 +881,7 @@ Respond with ONLY valid JSON — no prose, no markdown:
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
 #   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
 #          name-based season heuristic; description→implicit notes injection
-_CACHE_VERSION = 13
+_CACHE_VERSION = 14
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
