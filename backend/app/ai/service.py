@@ -142,10 +142,16 @@ Examples:
 Do not substitute a popular generic match if the user named something specific.
 
 ══════════════════════════════════════════════════════════════════
-PRIORITY 5 — GENDER
+PRIORITY 5 — GENDER  ⚠ HARD CONSTRAINT
 ══════════════════════════════════════════════════════════════════
-Match the stated gender. Unisex fragrances are acceptable when they lean
-noticeably toward the stated gender direction (e.g. a masculine unisex for "men").
+Match the stated gender strictly. Never recommend a fragrance marketed
+primarily for the opposite gender.
+- men → masculine or unisex fragrances only. Never recommend feminine fragrances.
+- women → feminine or unisex fragrances only. Never recommend masculine fragrances.
+- unisex → any gender is acceptable.
+SELF-CHECK: before outputting, verify each fragrance's target gender.
+A fragrance with "pour femme", "for her", "Moi", or similar feminine
+markers must never appear in a men's recommendation.
 
 ══════════════════════════════════════════════════════════════════
 PRIORITY 6 — LIKED FRAGRANCES (optional field)
@@ -351,32 +357,40 @@ def _build_user_message(
         ]
 
     # ── P7: LIKED BRANDS ──────────────────────────────────────────────────────
-    # Detect "brand-exclusive" intent: if ANY liked brand is mentioned in the
-    # description, the user clearly wants ALL results from that brand.
-    # Promote to a hard constraint so Claude doesn't dilute with other brands.
-    if prefs.liked_brands_text.strip():
-        liked_brands_list = [b.strip() for b in prefs.liked_brands_text.split(",") if b.strip()]
-        desc_lower = prefs.description_text.lower()
-        exclusive_brands = [b for b in liked_brands_list if b.lower() in desc_lower]
+    # Detect "brand-exclusive" intent via two sources:
+    #   A) liked brand name appears in description text
+    #   B) brand name is only mentioned in description (liked_brands empty)
+    # In either case, promote to a hard P2b constraint.
+    liked_brands_list = [b.strip() for b in prefs.liked_brands_text.split(",") if b.strip()]
+    desc_lower = prefs.description_text.lower()
 
-        if exclusive_brands:
-            exclusive_str = ", ".join(exclusive_brands)
-            lines += [
-                "",
-                f"[P2b BRAND — hard constraint] The user explicitly asked for fragrances from: {exclusive_str}",
-                f"  ALL 5 recommendations MUST come from {exclusive_str}.",
-                "  Do not include any other brand, even if it is a better seasonal or scent match.",
-                f"  Browse {exclusive_str}'s full catalogue and find the 5 best fits within the",
-                "  other constraints (budget, season, category, gender).",
-            ]
-        else:
-            lines += [
-                "",
-                f"[P7 LIKED BRANDS — lowest priority] {prefs.liked_brands_text.strip()}",
-                "  Prefer fragrances from these brands, but only within allowed categories (P2).",
-                "  A liked designer brand cannot appear when only dupe is selected, etc.",
-                "  Aim for at least 2–3 recommendations from these brands when possible.",
-            ]
+    # Source A: liked brand mentioned in description
+    exclusive_from_liked = [b for b in liked_brands_list if b.lower() in desc_lower]
+
+    # Source B: brand name extracted directly from description text
+    desc_brands = _extract_brands_from_description(prefs.description_text)
+    # Merge — desc_brands takes precedence if liked list is empty
+    exclusive_brands = exclusive_from_liked or desc_brands
+
+    if exclusive_brands:
+        exclusive_str = ", ".join(exclusive_brands)
+        lines += [
+            "",
+            f"[P2b BRAND — hard constraint] The user explicitly asked for fragrances from: {exclusive_str}",
+            f"  ALL 5 recommendations MUST come from {exclusive_str}. No exceptions.",
+            "  Do not include any other brand even if it fits the other criteria better.",
+            f"  Browse {exclusive_str}'s full fragrance catalogue carefully and select the 5 best",
+            "  options that satisfy budget, season, category, and gender constraints.",
+            f"  SELF-CHECK: before outputting, verify every brand is exactly '{exclusive_str}'.",
+        ]
+    elif liked_brands_list:
+        lines += [
+            "",
+            f"[P7 LIKED BRANDS — lowest priority] {prefs.liked_brands_text.strip()}",
+            "  Prefer fragrances from these brands, but only within allowed categories (P2).",
+            "  A liked designer brand cannot appear when only dupe is selected, etc.",
+            "  Aim for at least 2–3 recommendations from these brands when possible.",
+        ]
 
     # ── Implicit notes from description keywords ──────────────────────────────
     # When the description contains freshness/scent-cluster keywords, inject
@@ -661,6 +675,49 @@ _DESCRIPTION_NOTE_CLUSTERS: list[tuple[re.Pattern, list[str]]] = [
 ]
 
 
+# ── Brand extraction from description ────────────────────────────────────────
+# Detects explicit brand mentions in free-text descriptions like
+# "hitta en sommardoft från Lattafa" or "find something from Creed".
+# Used to upgrade the brand to a hard P2b constraint even when
+# liked_brands_text is empty.
+
+_BRAND_IN_DESC_PATTERNS: list[re.Pattern] = [
+    # Swedish: "från X", "av märket X"
+    re.compile(r"\bfrån\s+([A-Za-zÅÄÖåäö][A-Za-zÅÄÖåäö0-9\s]{1,40}?)(?=\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"\bav\s+märket\s+([A-Za-zÅÄÖåäö][A-Za-zÅÄÖåäö0-9\s]{1,40}?)(?=\s*[,.(]|$)", re.IGNORECASE),
+    # English: "from X", "by X"
+    re.compile(r"\bfrom\s+([A-Z][A-Za-z0-9\s]{1,40}?)(?=\s*[,.(]|$)", re.IGNORECASE),
+    re.compile(r"\bby\s+([A-Z][A-Za-z0-9\s]{1,40}?)(?=\s*[,.(]|$)", re.IGNORECASE),
+]
+
+# Known stop-words that are not brand names (prevents false positives)
+_BRAND_STOP_WORDS: frozenset[str] = frozenset({
+    "a", "an", "the", "this", "that", "en", "ett", "det", "den",
+    "some", "any", "my", "your", "their", "our",
+    "good", "great", "best", "nice", "bra", "bästa",
+})
+
+
+def _extract_brands_from_description(description: str) -> list[str]:
+    """
+    Extract explicit brand names from a free-text description.
+    Returns a list of candidate brand names (deduplicated, title-cased).
+    """
+    seen: set[str] = set()
+    brands: list[str] = []
+    for pattern in _BRAND_IN_DESC_PATTERNS:
+        for m in pattern.finditer(description):
+            raw = m.group(1).strip().rstrip(".,;:!?").strip()
+            # Only keep if it looks like a brand name (not a stop-word or too short)
+            if len(raw) < 2 or raw.lower() in _BRAND_STOP_WORDS:
+                continue
+            key = raw.lower()
+            if key not in seen:
+                seen.add(key)
+                brands.append(raw)
+    return brands
+
+
 def _extract_description_notes(description: str) -> list[str]:
     """
     Map free-text description keywords to concrete note clusters.
@@ -914,7 +971,7 @@ Respond with ONLY valid JSON — no prose, no markdown:
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
 #   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
 #          name-based season heuristic; description→implicit notes injection
-_CACHE_VERSION = 16
+_CACHE_VERSION = 17
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
