@@ -122,6 +122,14 @@ use season differs from the selected one:
 - Autumn → woody, spicy, warm but not oppressive. No pure summer aquatics.
 - All seasons → versatile fragrances only.
 
+⚠ POPULARITY BIAS WARNING: Do NOT default to a brand's most popular or
+best-selling fragrance if it does not fit the season. A fragrance being
+"famous" or "highly rated" never overrides the season constraint.
+Example: if summer is selected and the user mentions Afnan, do NOT recommend
+Afnan 9PM (a heavy oriental) — recommend Afnan 9AM Dive or similar fresh
+options instead. Always ask: "Does this fragrance actually smell like this
+season?" If not, pick a lesser-known but seasonally correct alternative.
+
 ══════════════════════════════════════════════════════════════════
 PRIORITY 4 — DESCRIPTION (user's stated intent)
 ══════════════════════════════════════════════════════════════════
@@ -572,6 +580,13 @@ _NAME_SEASON_PENALTY: dict[str, dict[str, float]] = {
     "noel":    {"summer": -1.5, "spring": -0.5},
     "nuit":    {"summer": -0.5},
     "absolu":  {"summer": -0.3},
+    # Evening/night-coded names — typically heavy orientals
+    "9pm":     {"summer": -2.5, "spring": -1.0},
+    "midnight": {"summer": -1.5, "spring": -0.5},
+    "night":   {"summer": -1.0},
+    "evening": {"summer": -0.8},
+    "tobacco": {"summer": -1.5, "spring": -0.5},
+    "opium":   {"summer": -1.5, "spring": -0.5},
 }
 
 
@@ -728,7 +743,7 @@ def _extract_json(text: str) -> dict:
 # ── Parfumo season validation ────────────────────────────────────────────────
 
 # If the selected season has fewer than this % of community votes → flag parfym
-_PARFUMO_SEASON_MIN_PCT = 20
+_PARFUMO_SEASON_MIN_PCT = 25
 
 
 def _parfumo_season_score(votes: dict[str, int] | None, season: str) -> float:
@@ -881,7 +896,7 @@ Respond with ONLY valid JSON — no prose, no markdown:
 #   v11 — note→season re-ranking + Fragella DNA fingerprint injection into prompt
 #   v12 — fix season_score note matching (word-boundary substring for "Agarwood (Oud)");
 #          name-based season heuristic; description→implicit notes injection
-_CACHE_VERSION = 14
+_CACHE_VERSION = 15
 
 
 def _preference_hash(prefs: AssessmentPreferences) -> str:
