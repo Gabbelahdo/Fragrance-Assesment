@@ -743,7 +743,7 @@ def _extract_json(text: str) -> dict:
 # ── Parfumo season validation ────────────────────────────────────────────────
 
 # If the selected season has fewer than this % of community votes → flag parfym
-_PARFUMO_SEASON_MIN_PCT = 25
+_PARFUMO_SEASON_MIN_PCT = 20
 
 
 def _parfumo_season_score(votes: dict[str, int] | None, season: str) -> float:
